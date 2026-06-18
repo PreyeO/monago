@@ -1,0 +1,76 @@
+'use client';
+
+import Image from 'next/image';
+import Link from 'next/link';
+import { ShoppingBag } from 'lucide-react';
+import { Product } from '@/types';
+import { formatPrice, pick600Image } from '@/lib/utils';
+import { useCart } from '@/hooks/useCart';
+
+interface ProductCardProps {
+  product: Product;
+}
+
+export function ProductCard({ product }: ProductCardProps) {
+  const { addProduct } = useCart();
+  const imageUrl = pick600Image(product.image_urls);
+  const outOfStock = product.stock_status !== 'inStock';
+
+  return (
+    <div className="flex flex-col overflow-hidden rounded-xl border border-stone-100 bg-white shadow-sm">
+
+      {/* Image */}
+      <Link
+        href={`/product/${product.amway_code}`}
+        className="relative block aspect-square overflow-hidden bg-white"
+      >
+        <Image
+          src={imageUrl}
+          alt={product.name ?? product.amway_code}
+          fill
+          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          className="object-contain p-4 transition-transform duration-500 hover:scale-105"
+        />
+        {outOfStock && (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70">
+            <span className="bg-zinc-900 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white">
+              Sold Out
+            </span>
+          </div>
+        )}
+      </Link>
+
+      {/* Info + CTA */}
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        {product.brand && (
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-600">
+            {product.brand}
+          </p>
+        )}
+
+        <Link href={`/product/${product.amway_code}`} className="flex-1">
+          <h3 className="line-clamp-2 text-sm font-medium leading-snug text-zinc-800 hover:text-amber-600 transition-colors">
+            {product.name ?? product.amway_code}
+          </h3>
+        </Link>
+
+        <p className="text-base font-bold text-zinc-900">
+          {formatPrice(product.selling_price)}
+        </p>
+
+        <button
+          disabled={outOfStock}
+          onClick={() => !outOfStock && addProduct(product)}
+          className={`mt-1 flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-xs font-semibold uppercase tracking-widest transition-colors ${
+            outOfStock
+              ? 'cursor-not-allowed bg-stone-100 text-stone-400'
+              : 'cursor-pointer bg-zinc-900 text-white hover:bg-amber-500'
+          }`}
+        >
+          <ShoppingBag className="h-3.5 w-3.5" />
+          {outOfStock ? 'Out of Stock' : 'Add to Bag'}
+        </button>
+      </div>
+    </div>
+  );
+}

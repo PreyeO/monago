@@ -1,7 +1,20 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'media.mlp.amway.eu',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.amway.co.uk',
+        pathname: '/**',
+      },
+    ],
+  },
 };
 
 export default nextConfig;
