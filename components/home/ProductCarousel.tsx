@@ -16,37 +16,41 @@ export function ProductCarousel({ products }: Props) {
     if (!trackRef.current) return;
     const cardWidth = trackRef.current.firstElementChild
       ? (trackRef.current.firstElementChild as HTMLElement).offsetWidth + 16
-      : 280;
+      : 260;
     trackRef.current.scrollBy({ left: dir === 'right' ? cardWidth * 2 : -cardWidth * 2, behavior: 'smooth' });
   }
 
   return (
     <div className="relative">
-      {/* Prev */}
+      {/* Prev — desktop only */}
       <button
         onClick={() => scroll('left')}
-        className="absolute -left-5 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full border border-stone-200 bg-white p-2 shadow-md transition-colors hover:bg-zinc-900 hover:text-white hover:border-zinc-900"
+        className="absolute -left-5 top-1/2 z-10 hidden -translate-y-1/2 cursor-pointer rounded-full border border-stone-200 bg-white p-2 shadow-md transition-colors hover:border-zinc-900 hover:bg-zinc-900 hover:text-white sm:flex"
         aria-label="Previous"
       >
         <ChevronLeft className="h-5 w-5" />
       </button>
 
-      {/* Track */}
+      {/* Scrollable track */}
       <div
         ref={trackRef}
-        className="flex gap-4 overflow-x-auto scroll-smooth pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-3 overflow-x-auto scroll-smooth pb-2 sm:gap-4 scrollbar-none [&::-webkit-scrollbar]:hidden"
+        style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
       >
         {products.map((product) => (
-          <div key={product.id} className="w-[220px] shrink-0 sm:w-[240px]">
+          <div
+            key={product.id}
+            className="flex w-[44vw] shrink-0 flex-col sm:w-55 md:w-60"
+          >
             <ProductCard product={product} />
           </div>
         ))}
       </div>
 
-      {/* Next */}
+      {/* Next — desktop only */}
       <button
         onClick={() => scroll('right')}
-        className="absolute -right-5 top-1/2 z-10 -translate-y-1/2 cursor-pointer rounded-full border border-stone-200 bg-white p-2 shadow-md transition-colors hover:bg-zinc-900 hover:text-white hover:border-zinc-900"
+        className="absolute -right-5 top-1/2 z-10 hidden -translate-y-1/2 cursor-pointer rounded-full border border-stone-200 bg-white p-2 shadow-md transition-colors hover:border-zinc-900 hover:bg-zinc-900 hover:text-white sm:flex"
         aria-label="Next"
       >
         <ChevronRight className="h-5 w-5" />

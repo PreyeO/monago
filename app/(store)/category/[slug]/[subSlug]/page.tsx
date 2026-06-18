@@ -49,7 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function SubcategoryPage({ params, searchParams }: Props) {
-  const { slug, subSlug }           = await params;
+  const { slug, subSlug }            = await params;
   const { sort = 'newest', inStock } = await searchParams;
 
   const cat = getCategoryBySlug(slug);
@@ -59,71 +59,90 @@ export default async function SubcategoryPage({ params, searchParams }: Props) {
   const products = await getProducts(subSlug, sort, inStock === '1');
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-10 lg:px-8">
 
-      {/* Breadcrumb */}
-      <nav className="mb-8 flex items-center gap-1.5 text-sm text-stone-400">
-        <Link href="/" className="transition-colors hover:text-zinc-900">Home</Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <Link href={`/category/${slug}`} className="transition-colors hover:text-zinc-900">{cat.name}</Link>
-        <ChevronRight className="h-3.5 w-3.5" />
-        <span className="text-zinc-900">{sub.name}</span>
-      </nav>
+        {/* Breadcrumb */}
+        <nav className="mb-5 flex items-center gap-1.5 text-xs text-stone-400 sm:text-sm">
+          <Link href="/" className="transition-colors hover:text-zinc-900">Home</Link>
+          <ChevronRight className="h-3 w-3" />
+          <Link href={`/category/${slug}`} className="transition-colors hover:text-zinc-900">{cat.name}</Link>
+          <ChevronRight className="h-3 w-3" />
+          <span className="text-zinc-900">{sub.name}</span>
+        </nav>
 
-      <div className="flex flex-col gap-10 lg:flex-row">
-
-        {/* Sidebar */}
-        <aside className="w-full lg:w-56 lg:shrink-0">
-          <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-stone-400">
-            {cat.name}
-          </p>
-          <ul className="space-y-0.5">
-            {cat.subcategories.map((s) => (
-              <li key={s.slug}>
-                <Link
-                  href={`/category/${slug}/${s.slug}`}
-                  className={`block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                    s.slug === subSlug
-                      ? 'bg-zinc-900 text-white'
-                      : 'text-zinc-600 hover:bg-stone-100 hover:text-zinc-900'
-                  }`}
-                >
-                  {s.name}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </aside>
-
-        {/* Products */}
-        <div className="flex-1">
-          <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="font-display text-3xl font-bold text-zinc-900 sm:text-4xl">{sub.name}</h1>
-              <p className="mt-1 text-sm text-stone-400">{products.length} products</p>
-            </div>
-            <SubcategoryControls
-              slug={slug}
-              subSlug={subSlug}
-              currentSort={sort}
-              inStock={inStock === '1'}
-            />
-          </div>
-
-          {products.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-24 text-center">
-              <p className="text-lg font-medium text-zinc-900">No products found</p>
-              <p className="mt-2 text-sm text-stone-400">
-                Try adjusting your filters or{' '}
-                <Link href={`/category/${slug}`} className="underline hover:text-zinc-900">
-                  browse all {cat.name}
-                </Link>
-              </p>
-            </div>
-          ) : (
-            <ProductGrid products={products} />
-          )}
+        {/* Subcategory pills — mobile horizontal scroll */}
+        <div className="mb-5 flex gap-2 overflow-x-auto pb-1 scrollbar-none [&::-webkit-scrollbar]:hidden lg:hidden">
+          {cat.subcategories.map((s) => (
+            <Link
+              key={s.slug}
+              href={`/category/${slug}/${s.slug}`}
+              className={`shrink-0 rounded-full border px-4 py-2 text-xs font-medium transition-colors ${
+                s.slug === subSlug
+                  ? 'border-zinc-900 bg-zinc-900 text-white'
+                  : 'border-stone-200 bg-white text-zinc-700 hover:border-zinc-900 hover:bg-zinc-900 hover:text-white'
+              }`}
+            >
+              {s.name}
+            </Link>
+          ))}
         </div>
+
+        <div className="flex gap-8">
+          {/* Sidebar — desktop only */}
+          <aside className="hidden w-52 shrink-0 lg:block">
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.25em] text-stone-400">
+              {cat.name}
+            </p>
+            <ul className="space-y-0.5">
+              {cat.subcategories.map((s) => (
+                <li key={s.slug}>
+                  <Link
+                    href={`/category/${slug}/${s.slug}`}
+                    className={`block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+                      s.slug === subSlug
+                        ? 'bg-zinc-900 text-white'
+                        : 'text-zinc-600 hover:bg-stone-100 hover:text-zinc-900'
+                    }`}
+                  >
+                    {s.name}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </aside>
+
+          {/* Products */}
+          <div className="flex-1 min-w-0">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h1 className="font-display text-2xl font-bold text-zinc-900 sm:text-3xl">{sub.name}</h1>
+                <p className="mt-0.5 text-xs text-stone-400">{products.length} products</p>
+              </div>
+              <SubcategoryControls
+                slug={slug}
+                subSlug={subSlug}
+                currentSort={sort}
+                inStock={inStock === '1'}
+              />
+            </div>
+
+            {products.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <p className="text-base font-medium text-zinc-900">No products found</p>
+                <p className="mt-2 text-sm text-stone-400">
+                  Try adjusting your filters or{' '}
+                  <Link href={`/category/${slug}`} className="underline hover:text-zinc-900">
+                    browse all {cat.name}
+                  </Link>
+                </p>
+              </div>
+            ) : (
+              <ProductGrid products={products} />
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );
