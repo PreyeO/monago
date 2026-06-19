@@ -19,9 +19,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen bg-slate-50">
       {/* Sidebar */}
       <aside className="flex w-56 flex-shrink-0 flex-col border-r border-slate-200 bg-white">
-        <div className="flex h-16 items-center border-b border-slate-100 px-5">
-          <Link href="/" className="text-lg font-bold text-slate-900">Monago</Link>
-          <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">Admin</span>
+        <div className="flex h-16 items-center gap-2 border-b border-slate-100 px-5">
+          <Link href="/" className="flex items-baseline gap-0.5 select-none">
+            <span className="font-display text-[22px] font-bold leading-none text-amber-500">M</span>
+            <span className="font-display text-[19px] font-semibold tracking-[0.15em] uppercase text-zinc-900">onago</span>
+          </Link>
+          <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">Admin</span>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 p-3">

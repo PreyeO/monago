@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
+import { Search } from 'lucide-react';
 import { Product } from '@/types';
 import { formatPrice, pick90Image } from '@/lib/utils';
 import { Badge, Button, Spinner } from '@/components/ui';
@@ -12,6 +13,18 @@ export function ProductTable() {
   const updateProduct = useUpdateProduct();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editPrice, setEditPrice] = useState('');
+  const [query, setQuery] = useState('');
+
+  const filtered = query.trim()
+    ? (products as Product[]).filter((p) => {
+        const q = query.toLowerCase();
+        return (
+          p.name?.toLowerCase().includes(q) ||
+          p.brand?.toLowerCase().includes(q) ||
+          p.amway_code?.toLowerCase().includes(q)
+        );
+      })
+    : (products as Product[]);
 
   function startEdit(product: Product) {
     setEditingId(product.id);
@@ -30,6 +43,19 @@ export function ProductTable() {
   }
 
   return (
+    <div className="space-y-4">
+      {/* Search */}
+      <div className="relative max-w-sm">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by name, brand or code…"
+          className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-900"
+        />
+      </div>
+
     <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
       <table className="min-w-full divide-y divide-slate-200">
         <thead className="bg-slate-50">
@@ -44,11 +70,14 @@ export function ProductTable() {
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
-          {(products as Product[]).map((product) => (
+          {filtered.length === 0 && (
+            <tr><td colSpan={7} className="py-10 text-center text-sm text-slate-400">No products match &ldquo;{query}&rdquo;</td></tr>
+          )}
+          {filtered.map((product) => (
             <tr key={product.id} className="hover:bg-slate-50">
               <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="relative h-10 w-10 flex-shrink-0 overflow-hidden rounded-lg bg-slate-100">
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-slate-100">
                     <Image
                       src={pick90Image(product.image_urls)}
                       alt={product.name ?? ''}
@@ -128,6 +157,7 @@ export function ProductTable() {
           ))}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }
