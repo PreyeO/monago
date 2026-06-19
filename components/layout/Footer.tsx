@@ -45,9 +45,7 @@ export function Footer() {
           <div>
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-stone-300">Help</h3>
             <ul className="space-y-2.5 text-sm text-stone-500">
-              <li><Link href="/faq"     className="hover:text-white transition-colors">FAQ</Link></li>
-              <li><Link href="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
-              <li><Link href="/returns" className="hover:text-white transition-colors">Returns</Link></li>
+              <li><Link href="/contact" className="transition-colors hover:text-white">Contact Us</Link></li>
             </ul>
           </div>
 
@@ -55,16 +53,22 @@ export function Footer() {
           <div>
             <h3 className="mb-4 text-xs font-semibold uppercase tracking-[0.2em] text-stone-300">Legal</h3>
             <ul className="space-y-2.5 text-sm text-stone-500">
-              <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/terms"   className="hover:text-white transition-colors">Terms & Conditions</Link></li>
-              <li><Link href="/returns" className="hover:text-white transition-colors">Returns Policy</Link></li>
+              <li><Link href="/privacy" className="transition-colors hover:text-white">Privacy Policy</Link></li>
+              <li><Link href="/terms"   className="transition-colors hover:text-white">Terms & Conditions</Link></li>
             </ul>
           </div>
         </div>
 
         <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-zinc-800 pt-8 text-xs text-stone-600 sm:flex-row">
           <p>© {new Date().getFullYear()} Monago. All rights reserved.</p>
-          <p>Designed for wellness. Made in the UK.</p>
+          <a
+            href="https://letscr8t.vercel.app/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="transition-colors hover:text-stone-400"
+          >
+            Designed & built by <span className="text-amber-500">LetsCr8t</span>
+          </a>
         </div>
       </div>
     </footer>
