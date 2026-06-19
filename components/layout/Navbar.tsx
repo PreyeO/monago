@@ -1,11 +1,12 @@
 'use client';
 
 import Link from 'next/link';
-import { ShoppingBag, Menu, X } from 'lucide-react';
+import { ShoppingBag, Menu, X, Search } from 'lucide-react';
 import { useState } from 'react';
 import { CATEGORIES } from '@/constants/categories';
 import { useCartStore } from '@/store/cartStore';
 import { CartDrawer } from '@/components/cart/CartDrawer';
+import { SearchModal } from '@/components/search/SearchModal';
 
 function MonagoLogo() {
   return (
@@ -17,8 +18,9 @@ function MonagoLogo() {
 }
 
 export function Navbar() {
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [cartOpen, setCartOpen]     = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [cartOpen,    setCartOpen]    = useState(false);
+  const [searchOpen,  setSearchOpen]  = useState(false);
   const totalItems = useCartStore((s) =>
     s.items.reduce((acc, item) => acc + item.quantity, 0)
   );
@@ -49,7 +51,14 @@ export function Navbar() {
           </nav>
 
           {/* Right */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="cursor-pointer rounded-full p-2.5 text-zinc-700 transition-colors hover:bg-stone-100"
+              aria-label="Search"
+            >
+              <Search className="h-5 w-5" />
+            </button>
             <button
               onClick={() => setCartOpen(true)}
               className="relative cursor-pointer rounded-full p-2.5 text-zinc-700 transition-colors hover:bg-stone-100"
@@ -93,6 +102,7 @@ export function Navbar() {
       </header>
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} />
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 }
