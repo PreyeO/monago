@@ -3,10 +3,10 @@ export const dynamic = 'force-dynamic';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, ExternalLink, Package } from 'lucide-react';
+import { ChevronRight, Package } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { Product } from '@/types';
-import { formatPrice, getAmwayProductUrl, pick600Image } from '@/lib/utils';
+import { formatPrice, pick600Image } from '@/lib/utils';
 import { Badge } from '@/components/ui';
 import { RecommendedProducts } from '@/components/product/RecommendedProducts';
 import { AddToCartButton } from './AddToCartButton';
@@ -65,7 +65,7 @@ export default async function ProductPage({ params }: Props) {
 
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Image */}
-        <div className="relative aspect-square overflow-hidden rounded-2xl bg-slate-50">
+        <div className="relative aspect-square overflow-hidden rounded-2xl">
           <Image
             src={mainImage}
             alt={product.name ?? product.amway_code}
@@ -109,16 +109,6 @@ export default async function ProductPage({ params }: Props) {
           <div className="mt-6 flex items-center gap-3 border-t border-slate-100 pt-6">
             <Package className="h-4 w-4 text-slate-400" />
             <span className="text-xs text-slate-500">Product code: {product.amway_code}</span>
-            {product.amway_url && (
-              <a
-                href={getAmwayProductUrl(product.amway_url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ml-auto flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"
-              >
-                View on Amway <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
           </div>
         </div>
       </div>

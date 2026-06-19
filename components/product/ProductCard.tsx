@@ -28,8 +28,9 @@ export function ProductCard({ product }: ProductCardProps) {
           src={imageUrl}
           alt={product.name ?? product.amway_code}
           fill
+          quality={90}
           sizes="(max-width: 480px) 48vw, (max-width: 768px) 45vw, (max-width: 1024px) 33vw, 25vw"
-          className="object-contain p-3 transition-transform duration-500 hover:scale-105 sm:p-4"
+          className="object-contain p-1.5 transition-transform duration-500 hover:scale-105 sm:p-2"
         />
         {outOfStock && (
           <div className="absolute inset-0 flex items-center justify-center bg-white/70">

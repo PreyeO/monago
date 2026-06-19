@@ -12,6 +12,25 @@ export type Category = {
 
 export const CATEGORIES: Category[] = [
   {
+    name: 'Beauty',
+    slug: 'beauty',
+    subcategories: [
+      { name: 'Skincare',                      slug: 'skincare',                      amwayCode: 'Skincare' },
+      { name: 'Make-up',                       slug: 'make-up',                       amwayCode: 'Make-up' },
+      { name: 'Personalised Beauty Solutions', slug: 'personalised-beauty-solutions', amwayCode: 'PersonalisedBeautySolutionsForYou' },
+      { name: 'Accessories',                   slug: 'accessories-beauty',            amwayCode: 'AccessoriesBeauty' },
+    ],
+  },
+  {
+    name: 'Personal Care',
+    slug: 'personal-care',
+    subcategories: [
+      { name: 'Hair Care',   slug: 'hair-care',  amwayCode: 'HairCare' },
+      { name: 'Body Care',   slug: 'bath-body',  amwayCode: '10054' },
+      { name: 'Oral Care',   slug: 'oral-care',  amwayCode: 'OralCare' },
+    ],
+  },
+  {
     name: 'Nutrition',
     slug: 'nutrition',
     subcategories: [
@@ -26,16 +45,6 @@ export const CATEGORIES: Category[] = [
     ],
   },
   {
-    name: 'Beauty',
-    slug: 'beauty',
-    subcategories: [
-      { name: 'Skincare',                      slug: 'skincare',                      amwayCode: 'Skincare' },
-      { name: 'Make-up',                       slug: 'make-up',                       amwayCode: 'Make-up' },
-      { name: 'Personalised Beauty Solutions', slug: 'personalised-beauty-solutions', amwayCode: 'PersonalisedBeautySolutionsForYou' },
-      { name: 'Accessories',                   slug: 'accessories-beauty',            amwayCode: 'AccessoriesBeauty' },
-    ],
-  },
-  {
     name: 'Home',
     slug: 'home',
     subcategories: [
@@ -46,15 +55,6 @@ export const CATEGORIES: Category[] = [
       { name: 'Dispensers & Applicators', slug: 'dispensers-and-applicators',amwayCode: 'DispensersAndApplicators' },
       { name: 'Cookware & Cutlery',       slug: 'cookware',                  amwayCode: 'CookwareAndCutlery' },
       { name: 'Water Treatment System',   slug: 'water-treatment',           amwayCode: 'WaterTreatmentSystem' },
-    ],
-  },
-  {
-    name: 'Personal Care',
-    slug: 'personal-care',
-    subcategories: [
-      { name: 'Hair Care',   slug: 'hair-care',  amwayCode: 'HairCare' },
-      { name: 'Body Care',   slug: 'bath-body',  amwayCode: '10054' },
-      { name: 'Oral Care',   slug: 'oral-care',  amwayCode: 'OralCare' },
     ],
   },
 ];

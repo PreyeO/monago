@@ -7,29 +7,30 @@ import { createServerClient } from '@/lib/supabase/server';
 import { CATEGORIES } from '@/constants/categories';
 import { HeroSlider } from '@/components/home/HeroSlider';
 import { ProductCarousel } from '@/components/home/ProductCarousel';
+import { TrustStrip } from '@/components/home/TrustStrip';
+import { NewsletterSignup } from '@/components/home/NewsletterSignup';
 import { Product } from '@/types';
+import { pick600Image } from '@/lib/utils';
 
 const CATEGORY_META: Record<string, {
   color: string;
   accent: string;
   tagline: string;
   subSlug: string;
+  keyword?: string;
+  badge?: string;
 }> = {
-  nutrition:       { color: '#041f0c', accent: '#4ade80', tagline: 'Fuel your potential',   subSlug: 'targeted-food-supplements' },
-  beauty:          { color: '#1a0635', accent: '#c084fc', tagline: 'Skin-transforming care', subSlug: 'skincare' },
-  home:            { color: '#071826', accent: '#60a5fa', tagline: 'A cleaner home',         subSlug: 'laundry-care' },
-  'personal-care': { color: '#280610', accent: '#fb7185', tagline: 'Your daily ritual',      subSlug: 'hair-care' },
+  beauty:          { color: '#1a0635', accent: '#c084fc', tagline: 'Skin-transforming care', subSlug: 'skincare',   keyword: 'SPF' },
+  'personal-care': { color: '#280610', accent: '#fb7185', tagline: 'Your daily ritual',      subSlug: 'bath-body',  keyword: 'wash' },
+  nutrition:       { color: '#041f0c', accent: '#4ade80', tagline: 'Fuel your potential',    subSlug: 'targeted-food-supplements' },
+  home:            { color: '#071826', accent: '#60a5fa', tagline: 'A cleaner home',         subSlug: 'laundry-care', badge: 'New In' },
 };
 
-async function getSkincareProducts(): Promise<Product[]> {
+async function getBestSellers(): Promise<Product[]> {
   const supabase = createServerClient();
-  const { data: cat } = await supabase
-    .from('categories').select('id').eq('slug', 'skincare').single();
-  if (!cat) return [];
   const { data } = await supabase
     .from('products')
     .select('*, category:categories(*)')
-    .eq('category_id', cat.id)
     .eq('is_active', true)
     .eq('stock_status', 'inStock')
     .order('selling_price', { ascending: false })
@@ -58,17 +59,23 @@ async function getCategoryImages(): Promise<Record<string, string[]>> {
       }
       if (!catIds.length) return [parentSlug, []] as [string, string[]];
 
-      const { data: products } = await supabase
-        .from('products')
-        .select('image_urls')
-        .in('category_id', catIds)
-        .eq('is_active', true)
-        .order('selling_price', { ascending: false })
-        .limit(2);
+      const baseQ = () =>
+        supabase.from('products').select('image_urls').in('category_id', catIds).eq('is_active', true);
+
+      let { data: products } = await (
+        meta.keyword
+          ? baseQ().ilike('name', `%${meta.keyword}%`)
+          : baseQ()
+      ).order('selling_price', { ascending: false }).limit(2);
+
+      // keyword returned nothing — fall back to any product in this category
+      if (meta.keyword && (!products || products.length === 0)) {
+        ({ data: products } = await baseQ().order('selling_price', { ascending: false }).limit(2));
+      }
 
       const images = (products ?? [])
-        .map((p: { image_urls: string[] }) => p.image_urls?.[0])
-        .filter(Boolean) as string[];
+        .map((p: { image_urls: string[] }) => pick600Image(p.image_urls))
+        .filter((url) => !url.includes('placeholder')) as string[];
 
       return [parentSlug, images] as [string, string[]];
     })
@@ -91,8 +98,8 @@ const BRANDS = [
 ];
 
 export default async function HomePage() {
-  const [skincare, categoryImages] = await Promise.all([
-    getSkincareProducts(),
+  const [bestSellers, categoryImages] = await Promise.all([
+    getBestSellers(),
     getCategoryImages(),
   ]);
 
@@ -102,13 +109,16 @@ export default async function HomePage() {
       {/* ── HERO SLIDER ─────────────────────────────────────────────────── */}
       <HeroSlider />
 
+      {/* ── TRUST STRIP ─────────────────────────────────────────────────── */}
+      <TrustStrip />
+
       {/* ── CATEGORIES ───────────────────────────────────────────────────── */}
       <section className="py-12 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="mb-7 sm:mb-10">
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-600">Collections</p>
             <h2 className="font-display mt-2 text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
-              Shop by Category
+              Browse our shop
             </h2>
           </div>
 
@@ -124,43 +134,37 @@ export default async function HomePage() {
                   className="group relative flex aspect-2/3 flex-col justify-end overflow-hidden rounded-2xl"
                   style={{ background: meta?.color ?? '#111' }}
                 >
-                  {/* Subtle radial glow behind products */}
+                  {/* Accent glow */}
                   {meta?.accent && (
                     <div
-                      className="pointer-events-none absolute left-1/2 top-[30%] h-36 w-36 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-25 blur-3xl sm:h-48 sm:w-48"
+                      className="pointer-events-none absolute left-1/2 top-[35%] h-32 w-32 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-30 blur-3xl sm:h-44 sm:w-44"
                       style={{ background: meta.accent }}
                     />
                   )}
 
-                  {/* Secondary product — floats top-right, rotated */}
-                  {images[1] && (
-                    <div className="absolute right-[6%] top-[10%] z-10 h-[30%] w-[38%] rotate-[8deg] overflow-hidden rounded-lg bg-white shadow-xl transition-transform duration-500 group-hover:rotate-[4deg] group-hover:scale-105">
-                      <Image
-                        src={images[1]}
-                        alt={cat.name}
-                        fill
-                        sizes="(max-width: 640px) 20vw, 10vw"
-                        className="object-contain p-2"
-                      />
+                  {/* New In badge */}
+                  {meta?.badge && (
+                    <div className="absolute left-3 top-3 z-30 rounded-full bg-amber-400 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-zinc-900 sm:left-4 sm:top-4 sm:text-[10px]">
+                      {meta.badge}
                     </div>
                   )}
 
-                  {/* Primary product — centred, dominant */}
+                  {/* Large centered product image */}
                   {images[0] && (
-                    <div className="absolute left-[10%] top-[15%] z-20 h-[48%] w-[58%] -rotate-[4deg] overflow-hidden rounded-xl bg-white shadow-2xl transition-transform duration-500 group-hover:rotate-[-1deg] group-hover:scale-105">
+                    <div className="absolute left-1/2 top-5 z-20 h-[58%] w-[78%] -translate-x-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl transition-transform duration-500 group-hover:scale-105 sm:top-7 sm:h-[60%] sm:w-[80%]">
                       <Image
                         src={images[0]}
                         alt={cat.name}
                         fill
-                        sizes="(max-width: 640px) 30vw, 15vw"
-                        className="object-contain p-3"
+                        sizes="(max-width: 640px) 45vw, 22vw"
+                        className="object-contain p-3 sm:p-4"
                         priority
                       />
                     </div>
                   )}
 
-                  {/* Bottom gradient */}
-                  <div className="absolute inset-0 bg-linear-to-t from-black/95 via-black/40 to-transparent" />
+                  {/* Bottom gradient — only covers the lower third for text */}
+                  <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-transparent" />
 
                   {/* Text */}
                   <div className="relative z-30 p-4 sm:p-5">
@@ -193,25 +197,25 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ── SKINCARE RECOMMENDATIONS ──────────────────────────────────────── */}
-      {skincare.length > 0 && (
+      {/* ── BEST SELLERS ─────────────────────────────────────────────────── */}
+      {bestSellers.length > 0 && (
         <section className="border-t border-stone-200 bg-white py-12 sm:py-20">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-7 flex items-end justify-between sm:mb-10">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-600">Skincare</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-600">Most Loved</p>
                 <h2 className="font-display mt-2 text-3xl font-bold tracking-tight text-zinc-900 sm:text-5xl">
-                  Recommended for You
+                  The Best Sellers
                 </h2>
               </div>
               <Link
-                href="/category/beauty/skincare"
+                href="/category/beauty"
                 className="hidden items-center gap-1 text-sm font-medium text-zinc-500 transition-colors hover:text-zinc-900 sm:flex"
               >
                 View all <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
-            <ProductCarousel products={skincare} />
+            <ProductCarousel products={bestSellers} />
           </div>
         </section>
       )}
@@ -238,6 +242,9 @@ export default async function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* ── NEWSLETTER SIGNUP ─────────────────────────────────────────────── */}
+      <NewsletterSignup />
 
       {/* ── BRANDS MARQUEE ───────────────────────────────────────────────── */}
       <section className="overflow-hidden border-t border-stone-200 bg-white py-8 sm:py-10">
