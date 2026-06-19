@@ -26,7 +26,7 @@ export function SearchModal({ open, onClose }: Props) {
   const [results, setResults] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const inputRef              = useRef<HTMLInputElement>(null);
-  const timerRef              = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef              = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { addProduct }        = useCart();
 
   useEffect(() => {
