@@ -20,6 +20,18 @@ export const metadata: Metadata = {
   title: { default: 'Monago — Premium Wellness', template: '%s | Monago' },
   description: 'Discover premium beauty, nutrition, home and personal care products — curated and delivered across the UK.',
   metadataBase: new URL('https://monago.co.uk'),
+  openGraph: {
+    type: 'website',
+    siteName: 'Monago',
+    title: 'Monago — Premium Wellness',
+    description: 'Discover premium beauty, nutrition, home and personal care products — curated and delivered across the UK.',
+    url: 'https://monago.co.uk',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Monago — Premium Wellness',
+    description: 'Discover premium beauty, nutrition, home and personal care products — curated and delivered across the UK.',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
