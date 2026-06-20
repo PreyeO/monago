@@ -10,11 +10,26 @@ import { Badge } from '@/components/ui';
 import { RecommendedProducts } from '@/components/product/RecommendedProducts';
 import { ProductImageGallery } from '@/components/product/ProductImageGallery';
 import { ProductAccordion } from '@/components/product/ProductAccordion';
+import { ProductCarousel } from '@/components/home/ProductCarousel';
 import { AddToCartButton } from './AddToCartButton';
 import type { Metadata } from 'next';
 
 interface Props {
   params: Promise<{ code: string }>;
+}
+
+async function getMostLoved(excludeId: string): Promise<Product[]> {
+  const supabase = createServerClient();
+  const { data } = await supabase
+    .from('products')
+    .select('*, category:categories(*)')
+    .eq('is_active', true)
+    .eq('stock_status', 'inStock')
+    .eq('is_most_loved', true)
+    .neq('id', excludeId)
+    .order('selling_price', { ascending: false })
+    .limit(12);
+  return (data ?? []) as Product[];
 }
 
 async function getProduct(code: string): Promise<Product | null> {
@@ -51,8 +66,9 @@ export default async function ProductPage({ params }: Props) {
   const product = await getProduct(code);
   if (!product) notFound();
 
-  const images  = pickAllImages(product.image_urls);
-  const inStock = product.stock_status === 'inStock';
+  const images     = pickAllImages(product.image_urls);
+  const inStock    = product.stock_status === 'inStock';
+  const mostLoved  = await getMostLoved(product.id);
 
   // Build accordion sections from available data
   const accordionSections: { title: string; content: React.ReactNode }[] = [];
@@ -192,8 +208,21 @@ export default async function ProductPage({ params }: Props) {
       </div>
 
 
-      {/* Recommended */}
+      {/* Recommended — same category */}
       <RecommendedProducts categoryId={product.category_id} excludeId={product.id} />
+
+      {/* Most Loved */}
+      {mostLoved.length > 0 && (
+        <section className="mt-16 border-t border-stone-100 pt-12">
+          <p className="text-xs font-semibold uppercase tracking-[0.3em] text-amber-600">Most Loved</p>
+          <h2 className="font-display mt-2 text-2xl font-bold text-zinc-900 sm:text-3xl">
+            Customer Favourites
+          </h2>
+          <div className="mt-6">
+            <ProductCarousel products={mostLoved} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

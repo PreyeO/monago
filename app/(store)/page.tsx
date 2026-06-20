@@ -33,9 +33,20 @@ async function getBestSellers(): Promise<Product[]> {
     .select('*, category:categories(*)')
     .eq('is_active', true)
     .eq('stock_status', 'inStock')
+    .eq('is_most_loved', true)
     .order('selling_price', { ascending: false })
     .limit(16);
-  return (data ?? []) as Product[];
+  if (data && data.length > 0) return data as Product[];
+
+  // Fallback: no most-loved flagged yet — return highest-priced products
+  const { data: fallback } = await supabase
+    .from('products')
+    .select('*, category:categories(*)')
+    .eq('is_active', true)
+    .eq('stock_status', 'inStock')
+    .order('selling_price', { ascending: false })
+    .limit(16);
+  return (fallback ?? []) as Product[];
 }
 
 async function getCategoryImages(): Promise<Record<string, string[]>> {
@@ -185,7 +196,7 @@ export default async function HomePage() {
                         Browse
                       </span>
                       <ArrowRight
-                        className="h-2.5 w-2.5 translate-x-[-4px] opacity-0 transition-all duration-300 delay-75 group-hover:translate-x-0 group-hover:opacity-100 sm:h-3 sm:w-3"
+                        className="h-2.5 w-2.5 -translate-x-1 opacity-0 transition-all duration-300 delay-75 group-hover:translate-x-0 group-hover:opacity-100 sm:h-3 sm:w-3"
                         style={{ color: meta?.accent ?? '#fff' }}
                       />
                     </div>

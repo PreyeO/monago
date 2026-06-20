@@ -374,6 +374,8 @@ function normalise(raw, categoryCode) {
     .map((l) => l.name)
     .filter(Boolean);
 
+  const isMostLoved = (raw.amwayLabels ?? []).some((l) => l?.type === 'AMWAY_MOST_LOVED');
+
   return {
     code,
     name:        raw.name        ?? null,
@@ -381,9 +383,10 @@ function normalise(raw, categoryCode) {
     description: typeof description === 'string' ? description.replace(/<[^>]*>/g, '').trim() || null : null,
     size:        raw.amwaySize   ?? null,
     labels:      labels.length   ? labels : null,
-    sourcePrice: parsePriceGBP(raw.price?.formattedValue ?? raw.price?.value),
-    imageUrls:   extractImageUrls(raw),
-    amwayUrl:    raw.url ?? `/p/${code}`,
+    sourcePrice:  parsePriceGBP(raw.price?.formattedValue ?? raw.price?.value),
+    imageUrls:    extractImageUrls(raw),
+    amwayUrl:     raw.url ?? `/p/${code}`,
+    isMostLoved,
     categoryCode,
   };
 }
@@ -418,13 +421,14 @@ async function upsertProduct(p) {
       .update({
         name:           p.name,
         brand:          p.brand,
-        description:    p.description ?? null,
-        overview:       p.overview    ?? null,
-        details:        p.details     ?? null,
-        features:       p.features    ?? null,
-        video_url:      p.videoUrl    ?? null,
-        size:           p.size        ?? null,
-        labels:         p.labels      ?? null,
+        description:    p.description  ?? null,
+        overview:       p.overview     ?? null,
+        details:        p.details      ?? null,
+        features:       p.features     ?? null,
+        video_url:      p.videoUrl     ?? null,
+        size:           p.size         ?? null,
+        labels:         p.labels       ?? null,
+        is_most_loved:  p.isMostLoved  ?? false,
         source_price:   p.sourcePrice,
         image_urls:     p.imageUrls,
         amway_url:      p.amwayUrl,
@@ -439,13 +443,14 @@ async function upsertProduct(p) {
     amway_code:     p.code,
     name:           p.name,
     brand:          p.brand,
-    description:    p.description ?? null,
-    overview:       p.overview    ?? null,
-    details:        p.details     ?? null,
-    features:       p.features    ?? null,
-    video_url:      p.videoUrl    ?? null,
-    size:           p.size        ?? null,
-    labels:         p.labels      ?? null,
+    description:    p.description  ?? null,
+    overview:       p.overview     ?? null,
+    details:        p.details      ?? null,
+    features:       p.features     ?? null,
+    video_url:      p.videoUrl     ?? null,
+    size:           p.size         ?? null,
+    labels:         p.labels       ?? null,
+    is_most_loved:  p.isMostLoved  ?? false,
     source_price:   p.sourcePrice,
     selling_price:  p.sourcePrice != null
       ? parseFloat((p.sourcePrice * (1 + DEFAULT_MARKUP)).toFixed(2))

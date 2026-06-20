@@ -18,6 +18,7 @@ export interface Product {
   video_url: string | null;
   size: string | null;
   labels: string[] | null;
+  is_most_loved: boolean;
   category_id: string | null;
   source_price: number | null;
   selling_price: number | null;

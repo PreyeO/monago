@@ -37,7 +37,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`h-full ${cormorant.variable} ${inter.variable}`}>
-      <body className="flex min-h-full flex-col antialiased font-[family-name:var(--font-body)]">
+      <body className="flex min-h-full flex-col antialiased font-(family-name:--font-body)">
         <Providers>{children}</Providers>
       </body>
     </html>
