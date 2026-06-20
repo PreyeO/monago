@@ -9,7 +9,7 @@ interface Section {
 }
 
 export function ProductAccordion({ sections }: { sections: Section[] }) {
-  const [open, setOpen] = useState<string | null>(sections[0]?.title ?? null);
+  const [open, setOpen] = useState<string | null>(null);
 
   return (
     <div className="divide-y divide-stone-100 border-t border-stone-100">

@@ -56,7 +56,7 @@ export function NewsletterSignup() {
             value={email}
             onChange={(e) => { setEmail(e.target.value); setStatus('idle'); }}
             placeholder="Enter your email"
-            className="h-12 flex-1 rounded-xl border border-zinc-700 bg-zinc-800 px-4 text-sm text-white placeholder:text-zinc-500 focus:border-amber-400 focus:outline-none"
+            className="flex-1 rounded-xl border border-zinc-700 bg-zinc-800 px-5 py-4 text-base text-white placeholder:text-zinc-500 focus:border-amber-400 focus:outline-none sm:h-12 sm:py-0 sm:px-4 sm:text-sm"
           />
           <button
             type="submit"

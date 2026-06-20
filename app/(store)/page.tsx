@@ -151,7 +151,7 @@ export default async function HomePage() {
 
                   {/* Large centered product image */}
                   {images[0] && (
-                    <div className="absolute left-1/2 top-5 z-20 h-[58%] w-[78%] -translate-x-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl transition-transform duration-500 group-hover:scale-105 sm:top-7 sm:h-[60%] sm:w-[80%]">
+                    <div className="absolute left-1/2 top-4 z-20 h-[48%] w-[76%] -translate-x-1/2 overflow-hidden rounded-2xl bg-white shadow-2xl transition-transform duration-500 group-hover:scale-105 sm:top-7 sm:h-[58%] sm:w-[80%]">
                       <Image
                         src={images[0]}
                         alt={cat.name}
@@ -167,9 +167,9 @@ export default async function HomePage() {
                   <div className="absolute inset-0 bg-linear-to-t from-black/90 via-black/30 to-transparent" />
 
                   {/* Text */}
-                  <div className="relative z-30 p-4 sm:p-5">
+                  <div className="relative z-30 p-3 sm:p-5">
                     {meta?.tagline && (
-                      <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.25em] sm:mb-1.5 sm:text-[10px]"
+                      <p className="mb-1 hidden text-[9px] font-semibold uppercase tracking-[0.25em] sm:mb-1.5 sm:block sm:text-[10px]"
                         style={{ color: meta.accent + 'bb' }}>
                         {meta.tagline}
                       </p>

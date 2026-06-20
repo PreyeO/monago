@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, X, ZoomIn } from 'lucide-react';
 
 interface Props {
   images: string[];
@@ -21,11 +21,29 @@ export function ProductImageGallery({ images, name, outOfStock, videoUrl }: Prop
 
   const [active, setActive] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [lightbox, setLightbox] = useState(false);
   const touchStartX = useRef<number | null>(null);
 
   function goTo(i: number) { setActive(i); setPlaying(false); }
   function prev() { goTo((active - 1 + slides.length) % slides.length); }
   function next() { goTo((active + 1) % slides.length); }
+
+  const closeLightbox = useCallback(() => setLightbox(false), []);
+
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeLightbox();
+      if (e.key === 'ArrowLeft') prev();
+      if (e.key === 'ArrowRight') next();
+    };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [lightbox, active]);
 
   function onTouchStart(e: React.TouchEvent) {
     touchStartX.current = e.touches[0].clientX;
@@ -47,16 +65,23 @@ export function ProductImageGallery({ images, name, outOfStock, videoUrl }: Prop
     >
       {/* Slide content */}
       {slide.type === 'image' ? (
-        <Image
-          key={slide.url}
-          src={slide.url}
-          alt={`${name} — image ${active + 1}`}
-          fill
-          sizes="(max-width: 1024px) 100vw, 50vw"
-          className="object-contain p-6 transition-opacity duration-300"
-          priority={active === 0}
-          quality={90}
-        />
+        <button
+          onClick={() => setLightbox(true)}
+          className="group/zoom absolute inset-0 cursor-zoom-in"
+          aria-label="Zoom image"
+        >
+          <Image
+            key={slide.url}
+            src={slide.url}
+            alt={`${name} — image ${active + 1}`}
+            fill
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            className="object-contain p-6 transition-opacity duration-300"
+            priority={active === 0}
+            quality={90}
+          />
+          <ZoomIn className="absolute bottom-3 right-3 h-4 w-4 text-zinc-400 opacity-0 transition-opacity group-hover/zoom:opacity-100" />
+        </button>
       ) : playing ? (
         <video
           src={slide.url}
@@ -130,6 +155,64 @@ export function ProductImageGallery({ images, name, outOfStock, videoUrl }: Prop
             ))}
           </div>
         </>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && slide.type === 'image' && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm"
+          onClick={closeLightbox}
+        >
+          {/* Close */}
+          <button
+            onClick={closeLightbox}
+            aria-label="Close"
+            className="absolute right-4 top-4 cursor-pointer rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          {/* Image */}
+          <div
+            className="relative h-full max-h-[85vh] w-full max-w-3xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Image
+              src={slide.url}
+              alt={name}
+              fill
+              sizes="90vw"
+              className="object-contain"
+              quality={90}
+              priority
+            />
+          </div>
+
+          {/* Lightbox arrows */}
+          {slides.filter(s => s.type === 'image').length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); prev(); }}
+                aria-label="Previous"
+                className="absolute left-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); next(); }}
+                aria-label="Next"
+                className="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer rounded-full bg-white/10 p-2 text-white transition-colors hover:bg-white/20"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            </>
+          )}
+
+          {/* Counter */}
+          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-white/50">
+            {active + 1} / {slides.filter(s => s.type === 'image').length}
+          </p>
+        </div>
       )}
     </div>
   );

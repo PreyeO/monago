@@ -142,20 +142,10 @@ export default async function ProductPage({ params }: Props) {
             {product.name}
           </h1>
 
-          {/* Size + labels */}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            {product.size && (
-              <span className="text-xs text-slate-500">{product.size}</span>
-            )}
-            {product.labels?.map((label) => (
-              <span
-                key={label}
-                className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700"
-              >
-                {label}
-              </span>
-            ))}
-          </div>
+          {/* Size */}
+          {product.size && (
+            <p className="mt-2 text-xs text-slate-500">{product.size}</p>
+          )}
 
           {/* Price + stock */}
           <div className="mt-4 flex items-center gap-3">

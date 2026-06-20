@@ -368,9 +368,10 @@ function normalise(raw, categoryCode) {
     raw.longDescription ??
     null;
 
-  // Label names e.g. ["Most Loved", "Gift with Purchase"]
+  // Label names — strip any Amway-branded labels before storing
   const labels = (raw.amwayLabels ?? [])
-    .map((l) => l?.name)
+    .filter((l) => l?.name && !l.name.toLowerCase().includes('amway'))
+    .map((l) => l.name)
     .filter(Boolean);
 
   return {
