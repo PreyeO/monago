@@ -46,3 +46,40 @@ html { scroll-behavior: smooth; }
 .animate-fade-up-delay-2 {
   animation: fade-up 0.7s ease 0.3s both;
 }
+
+/* Rich HTML from Amway CMS rendered in product page accordion */
+.pdp-html h1,
+.pdp-html h2,
+.pdp-html h3 {
+  font-weight: 600;
+  color: #18181b;
+  margin-top: 1rem;
+  margin-bottom: 0.4rem;
+}
+.pdp-html h2 { font-size: 1rem; }
+.pdp-html h3 { font-size: 0.9rem; }
+.pdp-html p  { margin-bottom: 0.6rem; }
+.pdp-html ul,
+.pdp-html ol {
+  padding-left: 1.25rem;
+  margin-bottom: 0.6rem;
+}
+.pdp-html ul { list-style-type: disc; }
+.pdp-html ol { list-style-type: decimal; }
+.pdp-html li { margin-bottom: 0.25rem; }
+.pdp-html strong,
+.pdp-html b  { font-weight: 600; color: #18181b; }
+.pdp-html a  { color: #d97706; text-decoration: underline; }
+.pdp-html table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  margin-bottom: 0.75rem;
+}
+.pdp-html td,
+.pdp-html th {
+  border: 1px solid #e7e5e4;
+  padding: 0.35rem 0.6rem;
+  text-align: left;
+}
+.pdp-html th { background: #f5f5f4; font-weight: 600; }

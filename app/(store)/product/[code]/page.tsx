@@ -1,14 +1,15 @@
 export const dynamic = 'force-dynamic';
 
 import { notFound } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronRight, Package } from 'lucide-react';
+import { ChevronRight, Package, Truck, RotateCcw, ShieldCheck, CheckCircle } from 'lucide-react';
 import { createServerClient } from '@/lib/supabase/server';
 import { Product } from '@/types';
-import { formatPrice, pick600Image } from '@/lib/utils';
+import { formatPrice, pickAllImages } from '@/lib/utils';
 import { Badge } from '@/components/ui';
 import { RecommendedProducts } from '@/components/product/RecommendedProducts';
+import { ProductImageGallery } from '@/components/product/ProductImageGallery';
+import { ProductAccordion } from '@/components/product/ProductAccordion';
 import { AddToCartButton } from './AddToCartButton';
 import type { Metadata } from 'next';
 
@@ -38,80 +39,168 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+const PERKS = [
+  { icon: Truck,       text: 'Free delivery on orders over £50' },
+  { icon: RotateCcw,   text: '30-day hassle-free returns' },
+  { icon: ShieldCheck, text: 'Secure checkout via Stripe' },
+];
+
+
 export default async function ProductPage({ params }: Props) {
   const { code } = await params;
   const product = await getProduct(code);
   if (!product) notFound();
 
-  const mainImage = pick600Image(product.image_urls);
+  const images  = pickAllImages(product.image_urls);
   const inStock = product.stock_status === 'inStock';
 
+  // Build accordion sections from available data
+  const accordionSections: { title: string; content: React.ReactNode }[] = [];
+
+  if (product.overview) {
+    accordionSections.push({
+      title: 'Overview',
+      content: (
+        <div
+          className="pdp-html"
+          dangerouslySetInnerHTML={{ __html: product.overview }}
+        />
+      ),
+    });
+  }
+
+  if (product.details) {
+    accordionSections.push({
+      title: 'Details',
+      content: (
+        <div
+          className="pdp-html"
+          dangerouslySetInnerHTML={{ __html: product.details }}
+        />
+      ),
+    });
+  }
+
+  if (product.features && product.features.length > 0) {
+    accordionSections.push({
+      title: 'Key Features',
+      content: (
+        <ul className="space-y-2">
+          {product.features.map((f, i) => (
+            <li key={i} className="flex items-start gap-2">
+              <CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+              <span>{f}</span>
+            </li>
+          ))}
+        </ul>
+      ),
+    });
+  }
+
+  accordionSections.push({
+    title: 'Delivery & Returns',
+    content: (
+      <ul className="space-y-1.5">
+        <li>Free UK delivery on orders over £50.</li>
+        <li>Standard delivery 3–5 working days.</li>
+        <li>Return any unused item within 30 days for a full refund.</li>
+      </ul>
+    ),
+  });
+
+
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+
       {/* Breadcrumb */}
-      <nav className="mb-8 flex items-center gap-1.5 text-sm text-slate-500">
-        <Link href="/" className="hover:text-slate-900">Home</Link>
-        <ChevronRight className="h-3.5 w-3.5" />
+      <nav className="mb-8 flex items-center gap-1.5 text-xs text-slate-400 sm:text-sm">
+        <Link href="/" className="hover:text-slate-700">Home</Link>
+        <ChevronRight className="h-3 w-3" />
         {product.category && (
           <>
-            <Link href={`/category/${product.category.slug}`} className="hover:text-slate-900">
+            <Link href={`/category/${product.category.slug}`} className="hover:text-slate-700">
               {product.category.name}
             </Link>
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3 w-3" />
           </>
         )}
-        <span className="truncate text-slate-900">{product.name}</span>
+        <span className="truncate text-slate-700">{product.name}</span>
       </nav>
 
-      <div className="grid gap-10 lg:grid-cols-2">
-        {/* Image */}
-        <div className="relative aspect-square overflow-hidden rounded-2xl">
-          <Image
-            src={mainImage}
-            alt={product.name ?? product.amway_code}
-            fill
-            sizes="(max-width: 1024px) 100vw, 50vw"
-            className="object-contain p-8"
-            priority
-          />
-          {!inStock && (
-            <div className="absolute inset-0 flex items-center justify-center bg-white/70">
-              <Badge variant="danger" className="px-4 py-2 text-sm">Out of Stock</Badge>
-            </div>
-          )}
-        </div>
+      <div className="grid gap-8 lg:grid-cols-2 lg:gap-14">
 
-        {/* Info */}
+        {/* ── Image gallery ─────────────────────────────────────────── */}
+        <ProductImageGallery images={images} name={product.name ?? ''} outOfStock={!inStock} videoUrl={product.video_url} />
+
+        {/* ── Product info ──────────────────────────────────────────── */}
         <div className="flex flex-col">
-          <p className="text-sm font-medium text-amber-600">{product.brand}</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">{product.name}</h1>
 
-          <div className="mt-4 flex items-center gap-3">
-            <span className="text-3xl font-bold text-slate-900">{formatPrice(product.selling_price)}</span>
-            {inStock ? (
-              <Badge variant="success">In Stock</Badge>
-            ) : (
-              <Badge variant="danger">Out of Stock</Badge>
+          {product.brand && (
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-600">{product.brand}</p>
+          )}
+          <h1 className="mt-2 font-display text-2xl font-bold text-zinc-900 sm:text-3xl">
+            {product.name}
+          </h1>
+
+          {/* Size + labels */}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {product.size && (
+              <span className="text-xs text-slate-500">{product.size}</span>
             )}
+            {product.labels?.map((label) => (
+              <span
+                key={label}
+                className="rounded-full bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700"
+              >
+                {label}
+              </span>
+            ))}
           </div>
 
-          <p className="mt-2 text-xs text-slate-400">Incl. VAT · Free delivery over £50</p>
+          {/* Price + stock */}
+          <div className="mt-4 flex items-center gap-3">
+            <span className="text-3xl font-bold text-zinc-900">{formatPrice(product.selling_price)}</span>
+            <Badge variant={inStock ? 'success' : 'danger'}>
+              {inStock ? 'In Stock' : 'Out of Stock'}
+            </Badge>
+          </div>
+          <p className="mt-1 text-xs text-slate-400">Incl. VAT · Free delivery over £50</p>
 
+          {/* Short description */}
           {product.description && (
-            <p className="mt-6 text-sm leading-relaxed text-slate-600">{product.description}</p>
+            <p className="mt-4 text-sm leading-relaxed text-slate-600">{product.description}</p>
           )}
 
-          <div className="mt-8">
+          {/* Add to bag */}
+          <div className="mt-7">
             <AddToCartButton product={product} />
           </div>
 
-          {/* Product code */}
-          <div className="mt-6 flex items-center gap-3 border-t border-slate-100 pt-6">
-            <Package className="h-4 w-4 text-slate-400" />
-            <span className="text-xs text-slate-500">Product code: {product.amway_code}</span>
+          {/* Perks */}
+          <ul className="mt-6 space-y-2.5 border-t border-stone-100 pt-6">
+            {PERKS.map(({ icon: Icon, text }) => (
+              <li key={text} className="flex items-center gap-2.5 text-xs text-slate-500">
+                <Icon className="h-4 w-4 shrink-0 text-amber-500" />
+                {text}
+              </li>
+            ))}
+          </ul>
+
+          {/* Accordion */}
+          {accordionSections.length > 0 && (
+            <div className="mt-6">
+              <ProductAccordion sections={accordionSections} />
+            </div>
+          )}
+
+          {/* SKU */}
+          <div className="mt-6 flex items-center gap-2 border-t border-stone-100 pt-6">
+            <Package className="h-3.5 w-3.5 text-slate-300" />
+            <span className="text-xs text-slate-400">SKU: {product.amway_code}</span>
           </div>
         </div>
       </div>
+
 
       {/* Recommended */}
       <RecommendedProducts categoryId={product.category_id} excludeId={product.id} />

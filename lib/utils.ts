@@ -28,6 +28,26 @@ export function getAmwayProductUrl(amwayUrl: string): string {
   return `https://www.amway.co.uk${amwayUrl}`;
 }
 
+export function pickAllImages(imageUrls: string[] | null): string[] {
+  if (!imageUrls || imageUrls.length === 0) return ['/placeholder-product.jpg'];
+
+  // Prefer explicit 600_600 variants — each is a distinct product view
+  const hires = imageUrls.filter((u) => u.includes('600_600'));
+  if (hires.length > 0) return hires;
+
+  // Scene7: rewrite every stored URL to 600px (deduplicate by base path)
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const url of imageUrls) {
+    const base = url.split('?')[0];
+    if (!seen.has(base)) {
+      seen.add(base);
+      result.push(url.includes('media.mlp.amway.eu') ? toScene7Size(url, 600) : url);
+    }
+  }
+  return result.length > 0 ? result : ['/placeholder-product.jpg'];
+}
+
 function toScene7Size(url: string, size: number): string {
   if (url.includes('wid=')) {
     return url.replace(/wid=\d+/, `wid=${size}`).replace(/hei=\d+/, `hei=${size}`);

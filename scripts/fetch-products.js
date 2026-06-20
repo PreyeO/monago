@@ -183,6 +183,107 @@ async function fetchPage(token, categoryCode, pageNum) {
   };
 }
 
+// PDP data lives in the page HTML (__NEXT_DATA__), not in an API endpoint.
+// We HTTP GET the product page and parse the embedded JSON.
+async function fetchProductDetail(amwayUrl) {
+  if (!amwayUrl) return null;
+  const fullUrl = amwayUrl.startsWith('http')
+    ? amwayUrl
+    : `https://www.amway.co.uk${amwayUrl}`;
+  try {
+    const res = await fetch(fullUrl, {
+      headers: {
+        'user-agent':      USER_AGENT,
+        'accept':          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'accept-language': 'en-GB,en;q=0.9',
+        'accept-encoding': 'gzip, deflate, br',
+      },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]+)<\/script>/);
+    if (!match) return null;
+    const nextData = JSON.parse(match[1]);
+    return nextData?.props?.initialStateOrStore?.PDPState?.productData ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function stripHtml(html) {
+  return typeof html === 'string' ? html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || null : null;
+}
+
+function extractDetail(pdp) {
+  if (!pdp) return { overview: null, details: null, features: null, videoUrl: null, extraImages: [] };
+
+  // productSections has the rich Overview + Details HTML from the PDP
+  let overviewHtml = null;
+  let detailsHtml  = null;
+  for (const section of pdp.productSections ?? []) {
+    if (!section.visibleOnPDP || !section.content) continue;
+    if (section.sectionTypeCode === 'overview') overviewHtml = section.content;
+    if (section.sectionTypeCode === 'details')  detailsHtml  = section.content;
+  }
+
+  // Fallback overview from description field
+  const overview = overviewHtml ?? pdp.description ?? pdp.longDescription ?? null;
+
+  // Feature bullet points
+  let features = null;
+  const rawFeatures = pdp.features ?? pdp.featureList ?? pdp.classifications?.[0]?.features ?? null;
+  if (Array.isArray(rawFeatures) && rawFeatures.length) {
+    features = rawFeatures
+      .map((f) => (typeof f === 'string' ? f : f.name ?? f.featureValues?.[0]?.value))
+      .filter(Boolean)
+      .map(stripHtml)
+      .filter(Boolean);
+    if (!features.length) features = null;
+  }
+
+  // Extra images from amwayGallery — renditions have no format field; match by filename size token
+  const extraImages = [];
+  const seen = new Set();
+  for (const gallery of pdp.amwayGallery ?? []) {
+    if (gallery.type !== 'IMAGE') continue;
+    const renditions = gallery.renditions ?? [];
+    // Prefer 600_600, fallback to 800_800, fallback to first rendition
+    const best =
+      renditions.find((r) => r?.url?.includes('_600_600')) ??
+      renditions.find((r) => r?.url?.includes('_800_800')) ??
+      renditions[0];
+    if (best?.url) {
+      const u = best.url.startsWith('http') ? best.url : `https://media.mlp.amway.eu${best.url}`;
+      if (!seen.has(u)) { seen.add(u); extraImages.push(u); }
+    }
+  }
+
+  // Video URL — check amwayGallery VIDEO entries first (mp4), then fall back to YouTube/Vimeo
+  let videoUrl = null;
+  for (const gallery of pdp.amwayGallery ?? []) {
+    if (gallery.type !== 'VIDEO') continue;
+    const mp4 = (gallery.renditions ?? []).find((r) => r?.url?.endsWith('.mp4'));
+    if (mp4?.url) { videoUrl = mp4.url; break; }
+  }
+  if (!videoUrl) {
+    for (const m of [...(pdp.media ?? []), ...(pdp.videos ?? [])]) {
+      const url = m?.url ?? m?.embedUrl ?? m?.videoUrl ?? '';
+      if (url && (url.includes('youtube') || url.includes('youtu.be') || url.includes('vimeo'))) {
+        videoUrl = url;
+        break;
+      }
+    }
+  }
+
+  return {
+    overview: overviewHtml ?? (typeof overview === 'string' ? overview : null),
+    details:  detailsHtml,
+    features,
+    videoUrl,
+    extraImages,
+  };
+}
+
 async function fetchCategory(token, categoryCode) {
   const products = [];
 
@@ -211,14 +312,29 @@ async function fetchCategory(token, categoryCode) {
 // ---------- normalise ----------
 function extractImageUrls(product) {
   const urls = new Set();
-  for (const img of product.images ?? []) {
-    if (img?.url) {
-      const u = img.url.startsWith('http') ? img.url : `https://media.mlp.amway.eu${img.url}`;
-      urls.add(u);
+
+  // Only take "product" format (600×600) — skip thumbnails, tablets etc.
+  const productImages = (product.images ?? []).filter((img) => img?.format === 'product');
+  if (productImages.length > 0) {
+    for (const img of productImages) {
+      if (img?.url) {
+        const u = img.url.startsWith('http') ? img.url : `https://media.mlp.amway.eu${img.url}`;
+        urls.add(u);
+      }
+    }
+  } else {
+    // Fallback: take all images if none are tagged "product"
+    for (const img of product.images ?? []) {
+      if (img?.url) {
+        const u = img.url.startsWith('http') ? img.url : `https://media.mlp.amway.eu${img.url}`;
+        urls.add(u);
+      }
     }
   }
+
+  // Also pick up gallery renditions at "product" quality
   for (const gallery of product.amwayGallery ?? []) {
-    for (const rendition of gallery.renditions ?? []) {
+    for (const rendition of (gallery.renditions ?? []).filter((r) => r?.format === 'product')) {
       if (rendition?.url) {
         const u = rendition.url.startsWith('http')
           ? rendition.url
@@ -227,6 +343,7 @@ function extractImageUrls(product) {
       }
     }
   }
+
   return [...urls];
 }
 
@@ -244,10 +361,25 @@ function normalise(raw, categoryCode) {
     ? raw.brand
     : (raw.brand?.name ?? null);
 
+  const description =
+    raw.description ??
+    raw.summary ??
+    raw.shortDescription ??
+    raw.longDescription ??
+    null;
+
+  // Label names e.g. ["Most Loved", "Gift with Purchase"]
+  const labels = (raw.amwayLabels ?? [])
+    .map((l) => l?.name)
+    .filter(Boolean);
+
   return {
     code,
-    name:        raw.name ?? null,
+    name:        raw.name        ?? null,
     brand,
+    description: typeof description === 'string' ? description.replace(/<[^>]*>/g, '').trim() || null : null,
+    size:        raw.amwaySize   ?? null,
+    labels:      labels.length   ? labels : null,
     sourcePrice: parsePriceGBP(raw.price?.formattedValue ?? raw.price?.value),
     imageUrls:   extractImageUrls(raw),
     amwayUrl:    raw.url ?? `/p/${code}`,
@@ -285,10 +417,17 @@ async function upsertProduct(p) {
       .update({
         name:           p.name,
         brand:          p.brand,
+        description:    p.description ?? null,
+        overview:       p.overview    ?? null,
+        details:        p.details     ?? null,
+        features:       p.features    ?? null,
+        video_url:      p.videoUrl    ?? null,
+        size:           p.size        ?? null,
+        labels:         p.labels      ?? null,
         source_price:   p.sourcePrice,
         image_urls:     p.imageUrls,
         amway_url:      p.amwayUrl,
-        category_id:    categoryId,   // fix null category_ids from earlier runs
+        category_id:    categoryId,
         last_synced_at: now,
       })
       .eq('amway_code', p.code);
@@ -299,6 +438,13 @@ async function upsertProduct(p) {
     amway_code:     p.code,
     name:           p.name,
     brand:          p.brand,
+    description:    p.description ?? null,
+    overview:       p.overview    ?? null,
+    details:        p.details     ?? null,
+    features:       p.features    ?? null,
+    video_url:      p.videoUrl    ?? null,
+    size:           p.size        ?? null,
+    labels:         p.labels      ?? null,
     source_price:   p.sourcePrice,
     selling_price:  p.sourcePrice != null
       ? parseFloat((p.sourcePrice * (1 + DEFAULT_MARKUP)).toFixed(2))
@@ -356,6 +502,20 @@ async function main() {
 
       let inserted = 0, updated = 0;
       for (const p of normalised) {
+        // Fetch richer PDP data from the product page HTML (__NEXT_DATA__)
+        const pdpRaw = await fetchProductDetail(p.amwayUrl);
+        const detail = extractDetail(pdpRaw);
+        if (detail.overview)      p.overview  = detail.overview;
+        if (detail.details)       p.details   = detail.details;
+        if (detail.features)      p.features  = detail.features;
+        if (detail.videoUrl)      p.videoUrl  = detail.videoUrl;
+        // Merge extra PDP images (new angles not in PLP)
+        if (detail.extraImages.length) {
+          const existing = new Set(p.imageUrls);
+          for (const u of detail.extraImages) if (!existing.has(u)) p.imageUrls.push(u);
+        }
+        await new Promise((r) => setTimeout(r, 300)); // be polite
+
         const outcome = await upsertProduct(p);
         if (outcome === 'inserted') inserted++;
         else updated++;

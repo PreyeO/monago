@@ -12,6 +12,12 @@ export interface Product {
   name: string | null;
   brand: string | null;
   description: string | null;
+  overview: string | null;
+  details: string | null;
+  features: string[] | null;
+  video_url: string | null;
+  size: string | null;
+  labels: string[] | null;
   category_id: string | null;
   source_price: number | null;
   selling_price: number | null;
