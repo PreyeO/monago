@@ -37,7 +37,7 @@ function CustomTooltip({ active, payload }: any) {
 export function OrderStatusChart({ data }: Props) {
   if (data.every((d) => d.count === 0)) {
     return (
-      <p className="py-10 text-center text-sm text-slate-400">Noordersyet</p>
+      <p className="py-10 text-center text-sm text-slate-400">No orders yet</p>
     );
   }
 

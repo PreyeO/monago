@@ -9,6 +9,7 @@
     "sync": "node scripts/fetch-products.js"
   },
   "dependencies": {
+    "@emailjs/browser": "^4.4.1",
     "@hookform/resolvers": "^5.4.0",
     "@stripe/react-stripe-js": "^6.6.0",
     "@stripe/stripe-js": "^9.8.0",
@@ -22,6 +23,7 @@
     "react-dom": "19.2.4",
     "react-hook-form": "^7.79.0",
     "recharts": "^3.8.1",
+    "resend": "^6.14.0",
     "stripe": "^22.2.1",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3",

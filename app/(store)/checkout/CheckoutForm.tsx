@@ -23,11 +23,11 @@ const schema = z.object({
   firstName: z.string().min(1, 'Required'),
   lastName: z.string().min(1, 'Required'),
   email: z.string().email('Invalid email'),
-  phone: z.string().optional(),
+  phone: z.string().min(1, 'Required'),
   line1: z.string().min(1, 'Required'),
   line2: z.string().optional(),
   city: z.string().min(1, 'Required'),
-  county: z.string().optional(),
+  county: z.string().min(1, 'Required'),
   postcode: z.string().min(1, 'Required'),
 });
 
@@ -115,7 +115,7 @@ function CheckoutInner() {
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Input label="Email" type="email" error={errors.email?.message} {...register('email')} />
-            <Input label="Phone (optional)" type="tel" {...register('phone')} />
+            <Input label="Phone" type="tel" {...register('phone')} />
           </div>
         </div>
 
@@ -126,7 +126,7 @@ function CheckoutInner() {
             <Input label="Address line 2 (optional)" {...register('line2')} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Input label="City / Town" error={errors.city?.message} {...register('city')} />
-              <Input label="County (optional)" {...register('county')} />
+              <Input label="County" {...register('county')} />
             </div>
             <Input label="Postcode" error={errors.postcode?.message} {...register('postcode')} />
           </div>
