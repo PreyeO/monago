@@ -36,7 +36,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="mb-3 text-base font-semibold text-zinc-900">5. Returns</h2>
-          <p>You may return any item within 30 days of receipt provided it is unused and in its original packaging. To initiate a return, contact us at <a href="mailto:hello@monago.co.uk" className="text-amber-600 hover:underline">hello@monago.co.uk</a>. Refunds are processed within 5–10 business days of us receiving the returned item.</p>
+          <p>You may return any item within 30 days of receipt provided it is unused and in its original packaging. To initiate a return, <a href="/contact" className="text-amber-600 hover:underline">fill in our contact form</a>. Refunds are processed within 5–10 business days of us receiving the returned item.</p>
         </section>
 
         <section>
@@ -56,7 +56,7 @@ export default function TermsPage() {
 
         <section>
           <h2 className="mb-3 text-base font-semibold text-zinc-900">9. Contact</h2>
-          <p>For any queries, contact us at <a href="mailto:hello@monago.co.uk" className="text-amber-600 hover:underline">hello@monago.co.uk</a>.</p>
+          <p>For any queries, <a href="/contact" className="text-amber-600 hover:underline">fill in our contact form</a> and we'll get back to you.</p>
         </section>
 
       </div>

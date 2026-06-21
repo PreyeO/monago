@@ -51,7 +51,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="mb-3 text-base font-semibold text-zinc-900">7. Your rights</h2>
-          <p>Under UK GDPR you have the right to access, correct, or delete your personal data at any time. To make a request, contact us at <a href="mailto:hello@monago.co.uk" className="text-amber-600 hover:underline">hello@monago.co.uk</a>.</p>
+          <p>Under UK GDPR you have the right to access, correct, or delete your personal data at any time. To make a request, <a href="/contact" className="text-amber-600 hover:underline">fill in our contact form</a>.</p>
         </section>
 
         <section>
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
 
         <section>
           <h2 className="mb-3 text-base font-semibold text-zinc-900">9. Contact</h2>
-          <p>Questions about this policy? Email us at <a href="mailto:hello@monago.co.uk" className="text-amber-600 hover:underline">hello@monago.co.uk</a>.</p>
+          <p>Questions about this policy? <a href="/contact" className="text-amber-600 hover:underline">Fill in our contact form</a> and we'll get back to you.</p>
         </section>
 
       </div>
