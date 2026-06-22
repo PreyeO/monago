@@ -54,6 +54,7 @@ export async function POST(req: NextRequest) {
       amount: totalPence,
       currency: 'gbp',
       automatic_payment_methods: { enabled: true },
+      receipt_email: customerEmail,
     });
 
     const { data: order, error: orderError } = await supabase
