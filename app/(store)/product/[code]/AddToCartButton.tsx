@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { Product } from '@/types';
 import { useCart } from '@/hooks/useCart';
 import { Button } from '@/components/ui';
+import { trackEvent } from '@/lib/meta/pixel';
 
 export function AddToCartButton({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
@@ -13,6 +14,13 @@ export function AddToCartButton({ product }: { product: Product }) {
   function handleAdd() {
     addProduct(product);
     setAdded(true);
+    trackEvent('AddToCart', {
+      content_ids: [product.amway_code],
+      content_name: product.name ?? product.amway_code,
+      content_type: 'product',
+      value: product.selling_price ?? 0,
+      currency: 'GBP',
+    });
     setTimeout(() => setAdded(false), 2000);
   }
 

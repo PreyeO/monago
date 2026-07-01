@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Cormorant_Garamond, Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
+import { MetaPixel } from '@/components/meta/MetaPixel';
 
 const cormorant = Cormorant_Garamond({
   subsets: ['latin'],
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`h-full ${cormorant.variable} ${inter.variable}`}>
       <body className="flex min-h-full flex-col antialiased font-(family-name:--font-body)">
+        <MetaPixel />
         <Providers>{children}</Providers>
       </body>
     </html>

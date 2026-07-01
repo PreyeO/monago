@@ -1,0 +1,10 @@
+<svg viewBox="0 0 240 60" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .logo-text { font-size: 48px; font-weight: 700; font-family: Georgia, serif; }
+      .m-letter { fill: #f59e0b; }
+      .onago-text { fill: #18181b; }
+    </style>
+  </defs>
+  <text x="10" y="48" class="logo-text m-letter">M</text><text x="45" y="48" class="logo-text onago-text">onago</text>
+</svg>

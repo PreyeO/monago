@@ -11,6 +11,7 @@ import { RecommendedProducts } from '@/components/product/RecommendedProducts';
 import { ProductImageGallery } from '@/components/product/ProductImageGallery';
 import { ProductAccordion } from '@/components/product/ProductAccordion';
 import { ProductCarousel } from '@/components/home/ProductCarousel';
+import { ProductViewTracker } from '@/components/meta/ProductViewTracker';
 import { AddToCartButton } from './AddToCartButton';
 import type { Metadata } from 'next';
 
@@ -127,6 +128,13 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+
+      <ProductViewTracker
+        contentId={product.amway_code}
+        name={product.name ?? product.amway_code}
+        price={product.selling_price ?? 0}
+        category={product.category?.name}
+      />
 
       {/* Breadcrumb */}
       <nav className="mb-8 flex items-center gap-1.5 text-xs text-slate-400 sm:text-sm">

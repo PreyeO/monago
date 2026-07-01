@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { CheckCircle } from 'lucide-react';
@@ -8,12 +8,14 @@ import { useCartStore } from '@/store/cartStore';
 import { Order } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { Button, Spinner } from '@/components/ui';
+import { trackEvent } from '@/lib/meta/pixel';
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get('orderId');
   const [order, setOrder] = useState<Order | null>(null);
   const clearCart = useCartStore((s) => s.clearCart);
+  const purchaseFired = useRef(false);
 
   useEffect(() => {
     clearCart();
@@ -24,6 +26,26 @@ function OrderSuccessContent() {
         .catch(() => {});
     }
   }, [orderId]);
+
+  // Browser Purchase event. Uses the order id as event_id so it dedupes against
+  // the authoritative server-side Purchase sent from the Stripe webhook.
+  // browserOnly: the client never relays a purchase value to the CAPI.
+  useEffect(() => {
+    if (!order || purchaseFired.current) return;
+    purchaseFired.current = true;
+    trackEvent(
+      'Purchase',
+      {
+        content_ids: order.items.map((i) => i.amway_code),
+        contents: order.items.map((i) => ({ id: i.amway_code, quantity: i.quantity, item_price: i.unit_price })),
+        content_type: 'product',
+        num_items: order.items.reduce((s, i) => s + i.quantity, 0),
+        value: order.total,
+        currency: 'GBP',
+      },
+      { eventId: order.id, browserOnly: true }
+    );
+  }, [order]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-20 sm:px-6 text-center">

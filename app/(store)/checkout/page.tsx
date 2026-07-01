@@ -1,15 +1,31 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCartStore } from '@/store/cartStore';
 import { CheckoutForm } from './CheckoutForm';
 import { Spinner } from '@/components/ui';
+import { trackEvent } from '@/lib/meta/pixel';
 import Link from 'next/link';
 
 export default function CheckoutPage() {
   const items = useCartStore((s) => s.items);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const checkoutTracked = useRef(false);
+
+  // Fire InitiateCheckout once when the checkout page loads with items
+  useEffect(() => {
+    if (items.length === 0 || checkoutTracked.current) return;
+    checkoutTracked.current = true;
+    trackEvent('InitiateCheckout', {
+      content_ids: items.map((i) => i.amway_code),
+      contents: items.map((i) => ({ id: i.amway_code, quantity: i.quantity, item_price: i.selling_price })),
+      content_type: 'product',
+      num_items: items.reduce((s, i) => s + i.quantity, 0),
+      value: items.reduce((s, i) => s + i.selling_price * i.quantity, 0),
+      currency: 'GBP',
+    });
+  }, [items]);
 
   useEffect(() => {
     if (items.length === 0) return;

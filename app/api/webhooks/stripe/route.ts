@@ -3,7 +3,14 @@ import { stripe } from '@/lib/stripe';
 import { createServerClient } from '@/lib/supabase/server';
 import { resend } from '@/lib/resend';
 import { orderConfirmationHtml } from '@/lib/email/orderConfirmation';
+import { sendServerEvent } from '@/lib/meta/capi';
 import Stripe from 'stripe';
+
+interface OrderItemRow {
+  amway_code: string;
+  quantity: number;
+  unit_price: number;
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
@@ -52,6 +59,37 @@ export async function POST(req: NextRequest) {
       } catch (emailErr) {
         console.error('Failed to send order confirmation email:', emailErr);
       }
+    }
+
+    // Authoritative server-side Purchase event (Meta Conversions API).
+    // event_id = order.id dedupes against the browser Purchase on /order-success.
+    if (order?.id) {
+      const items = (order.items ?? []) as OrderItemRow[];
+      const [firstName, ...rest] = (order.customer_name ?? '').trim().split(' ');
+      const addr = order.shipping_address ?? {};
+      await sendServerEvent({
+        eventName: 'Purchase',
+        eventId: order.id,
+        eventSourceUrl: 'https://www.monago.co.uk/order-success',
+        userData: {
+          email:     order.customer_email,
+          firstName: firstName,
+          lastName:  rest.join(' '),
+          city:      addr.city,
+          county:    addr.county,
+          postcode:  addr.postcode,
+          country:   addr.country,
+        },
+        customData: {
+          currency:     'GBP',
+          value:        order.total,
+          content_type: 'product',
+          content_ids:  items.map((i) => i.amway_code),
+          contents:     items.map((i) => ({ id: i.amway_code, quantity: i.quantity, item_price: i.unit_price })),
+          num_items:    items.reduce((s, i) => s + i.quantity, 0),
+          order_id:     order.id,
+        },
+      });
     }
   }
 
