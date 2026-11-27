@@ -28,12 +28,19 @@ export function getAmwayProductUrl(amwayUrl: string): string {
   return `https://www.amway.co.uk${amwayUrl}`;
 }
 
+// Amway-hosted images come in several sizes we pick between; anything else
+// (e.g. photos uploaded from admin) is used exactly as stored.
+function isAmwayImage(url: string): boolean {
+  return url.includes('media.mlp.amway.eu') || url.includes('amway.co.uk');
+}
+
 export function pickAllImages(imageUrls: string[] | null): string[] {
   if (!imageUrls || imageUrls.length === 0) return ['/placeholder-product.jpg'];
 
-  // Prefer explicit 600_600 variants — each is a distinct product view
+  // Prefer explicit 600_600 variants — each is a distinct product view — and keep
+  // uploaded (non-Amway) images alongside them, in the order she arranged them.
   const hires = imageUrls.filter((u) => u.includes('600_600'));
-  if (hires.length > 0) return hires;
+  if (hires.length > 0) return imageUrls.filter((u) => u.includes('600_600') || !isAmwayImage(u));
 
   // Scene7: rewrite every stored URL to 600px (deduplicate by base path)
   const seen = new Set<string>();
@@ -61,6 +68,8 @@ function toScene7Size(url: string, size: number): string {
 
 export function pick600Image(imageUrls: string[] | null): string {
   if (!imageUrls || imageUrls.length === 0) return '/placeholder-product.jpg';
+  // An uploaded image placed first is the main image
+  if (!isAmwayImage(imageUrls[0])) return imageUrls[0];
   // Explicit 600_600 path-based variant
   const img600 = imageUrls.find((url) => url.includes('600_600'));
   if (img600) return img600;
@@ -72,6 +81,7 @@ export function pick600Image(imageUrls: string[] | null): string {
 
 export function pick90Image(imageUrls: string[] | null): string {
   if (!imageUrls || imageUrls.length === 0) return '/placeholder-product.jpg';
+  if (!isAmwayImage(imageUrls[0])) return imageUrls[0];
   const img90 = imageUrls.find((url) => url.includes('90_90'));
   if (img90) return img90;
   const base = imageUrls[0];

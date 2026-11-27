@@ -542,6 +542,7 @@ async function markDelisted(seenCodes) {
       .from('products')
       .select('amway_code, name')
       .eq('stock_status', 'inStock')
+      .not('last_synced_at', 'is', null) // products added by hand in admin were never synced — leave them alone
       .range(from, from + PAGE - 1);
     if (error) throw new Error(`load products: ${error.message}`);
     for (const row of data ?? []) if (!seenCodes.has(row.amway_code)) stale.push(row);
