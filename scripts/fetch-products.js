@@ -35,7 +35,7 @@ const supabase = createClient(
 );
 
 // ---------- constants ----------
-const DEFAULT_MARKUP = 0.3;
+const FALLBACK_MARKUP_PERCENT = 30; // used only if settings.global_markup is missing
 const PAGE_SIZE      = 60;
 const API_URL        = 'https://www.amway.co.uk/api/dnd/PLP/getUpdatedProductData';
 const USER_AGENT     =
@@ -163,7 +163,11 @@ async function fetchPage(token, categoryCode, pageNum) {
 
   if (!res.ok) {
     const text = await res.text();
-    console.warn(`  HTTP ${res.status}: ${text.slice(0, 200)}`);
+    if (isBotBlock(res)) {
+      console.warn(`  BLOCKED by Amway bot protection (HTTP ${res.status})`);
+    } else {
+      console.warn(`  HTTP ${res.status}: ${text.slice(0, 200)}`);
+    }
     return { status: res.status };
   }
 
@@ -183,10 +187,24 @@ async function fetchPage(token, categoryCode, pageNum) {
   };
 }
 
+function isBotBlock(res) {
+  return res.status === 403 || res.headers.get('x-datadome') != null;
+}
+
+// Map Amway's stockLevelStatus onto our two store states.
+// Returns null when Amway didn't tell us, so callers leave the stored value alone.
+function mapStockStatus(raw) {
+  const s = raw?.stock?.stockLevelStatus;
+  if (typeof s !== 'string' || !s) return null;
+  return s.toLowerCase() === 'outofstock' ? 'outOfStock' : 'inStock'; // inStock / lowStock → buyable
+}
+
 // PDP data lives in the page HTML (__NEXT_DATA__), not in an API endpoint.
 // We HTTP GET the product page and parse the embedded JSON.
+// Returns { data, blocked }: data is null on any failure; blocked is true when Amway's
+// bot protection refused the request.
 async function fetchProductDetail(amwayUrl) {
-  if (!amwayUrl) return null;
+  if (!amwayUrl) return { data: null, blocked: false };
   const fullUrl = amwayUrl.startsWith('http')
     ? amwayUrl
     : `https://www.amway.co.uk${amwayUrl}`;
@@ -199,14 +217,14 @@ async function fetchProductDetail(amwayUrl) {
         'accept-encoding': 'gzip, deflate, br',
       },
     });
-    if (!res.ok) return null;
+    if (!res.ok) return { data: null, blocked: isBotBlock(res) };
     const html = await res.text();
     const match = html.match(/<script id="__NEXT_DATA__" type="application\/json">([^<]+)<\/script>/);
-    if (!match) return null;
+    if (!match) return { data: null, blocked: false };
     const nextData = JSON.parse(match[1]);
-    return nextData?.props?.initialStateOrStore?.PDPState?.productData ?? null;
+    return { data: nextData?.props?.initialStateOrStore?.PDPState?.productData ?? null, blocked: false };
   } catch {
-    return null;
+    return { data: null, blocked: false };
   }
 }
 
@@ -284,6 +302,8 @@ function extractDetail(pdp) {
   };
 }
 
+// `failed` is true when the category could not be fetched completely (blocked, HTTP error,
+// bad JSON). A failed category must never be treated as "Amway has no products here".
 async function fetchCategory(token, categoryCode) {
   const products = [];
 
@@ -296,8 +316,8 @@ async function fetchCategory(token, categoryCode) {
       result = await fetchPage(token, categoryCode, pageNum);
     }
 
-    if (result.status === 401) return { products, expired: true };
-    if (result.status !== 200)  break;
+    if (result.status === 401) return { products, expired: true, failed: false };
+    if (result.status !== 200)  return { products, expired: false, failed: true };
     if (!result.products.length) break;
 
     products.push(...result.products);
@@ -306,7 +326,7 @@ async function fetchCategory(token, categoryCode) {
     if (products.length >= total || result.products.length < PAGE_SIZE) break;
   }
 
-  return { products, expired: false };
+  return { products, expired: false, failed: false };
 }
 
 // ---------- normalise ----------
@@ -386,6 +406,7 @@ function normalise(raw, categoryCode) {
     sourcePrice:  parsePriceGBP(raw.price?.formattedValue ?? raw.price?.value),
     imageUrls:    extractImageUrls(raw),
     amwayUrl:     raw.url ?? `/p/${code}`,
+    stockStatus:  mapStockStatus(raw),
     isMostLoved,
     categoryCode,
   };
@@ -404,42 +425,87 @@ async function getCategoryId(slug) {
   return slugCache[slug];
 }
 
-async function upsertProduct(p) {
+async function getGlobalMarkupPercent() {
+  const { data } = await supabase.from('settings').select('value').eq('key', 'global_markup').single();
+  const n = data ? parseFloat(data.value) : NaN;
+  return isNaN(n) ? FALLBACK_MARKUP_PERCENT : n;
+}
+
+const round2 = (n) => parseFloat(n.toFixed(2));
+
+// Work out the selling price after a sync.
+//  - Product has its own markup_override → apply it to the new Amway price.
+//  - Amway price changed and we had a selling price → scale it by the same ratio, which keeps
+//    both global-markup prices and prices she typed in by hand at the same margin.
+//  - No selling price yet → global markup.
+//  - Otherwise leave it alone.
+function computeSellingPrice(existing, newSource, globalMarkup) {
+  if (newSource == null) return existing?.selling_price ?? null;
+
+  if (existing?.markup_override != null) {
+    return round2(newSource * (1 + existing.markup_override / 100));
+  }
+  if (existing?.selling_price == null) {
+    return round2(newSource * (1 + globalMarkup / 100));
+  }
+  const oldSource = existing.source_price;
+  if (oldSource && oldSource > 0 && oldSource !== newSource) {
+    return round2(existing.selling_price * (newSource / oldSource));
+  }
+  return existing.selling_price;
+}
+
+// pdpOk: whether the product page was fetched successfully. When it wasn't (e.g. blocked),
+// we must not overwrite the rich content already stored with empty values.
+async function upsertProduct(p, { pdpOk, globalMarkup }) {
   const slug       = CODE_TO_SLUG[p.categoryCode];
   const categoryId = slug ? await getCategoryId(slug) : null;
   const now        = new Date().toISOString();
 
   const { data: existing } = await supabase
     .from('products')
-    .select('id')
+    .select('id, source_price, selling_price, markup_override, stock_status, image_urls')
     .eq('amway_code', p.code)
-    .single();
+    .maybeSingle();
 
   if (existing) {
-    await supabase
-      .from('products')
-      .update({
-        name:           p.name,
-        brand:          p.brand,
-        description:    p.description  ?? null,
-        overview:       p.overview     ?? null,
-        details:        p.details      ?? null,
-        features:       p.features     ?? null,
-        video_url:      p.videoUrl     ?? null,
-        size:           p.size         ?? null,
-        labels:         p.labels       ?? null,
-        is_most_loved:  p.isMostLoved  ?? false,
-        source_price:   p.sourcePrice,
-        image_urls:     p.imageUrls,
-        amway_url:      p.amwayUrl,
-        category_id:    categoryId,
-        last_synced_at: now,
-      })
-      .eq('amway_code', p.code);
-    return 'updated';
+    const update = {
+      name:           p.name,
+      brand:          p.brand,
+      size:           p.size         ?? null,
+      labels:         p.labels       ?? null,
+      is_most_loved:  p.isMostLoved  ?? false,
+      amway_url:      p.amwayUrl,
+      category_id:    categoryId,
+      last_synced_at: now,
+    };
+    if (p.description) update.description = p.description;
+    if (pdpOk) {
+      update.overview   = p.overview  ?? null;
+      update.details    = p.details   ?? null;
+      update.features   = p.features  ?? null;
+      update.video_url  = p.videoUrl  ?? null;
+      update.image_urls = p.imageUrls;
+    } else if (p.imageUrls.length && !existing.image_urls?.length) {
+      update.image_urls = p.imageUrls;
+    }
+    if (p.sourcePrice != null) {
+      update.source_price  = p.sourcePrice;
+      update.selling_price = computeSellingPrice(existing, p.sourcePrice, globalMarkup);
+    }
+    if (p.stockStatus) update.stock_status = p.stockStatus;
+
+    const { error } = await supabase.from('products').update(update).eq('amway_code', p.code);
+    if (error) throw new Error(`update ${p.code}: ${error.message}`);
+
+    return {
+      outcome:      'updated',
+      priceChanged: update.selling_price != null && update.selling_price !== existing.selling_price,
+      stockChanged: p.stockStatus != null && p.stockStatus !== existing.stock_status,
+    };
   }
 
-  await supabase.from('products').insert({
+  const { error } = await supabase.from('products').insert({
     amway_code:     p.code,
     name:           p.name,
     brand:          p.brand,
@@ -452,17 +518,44 @@ async function upsertProduct(p) {
     labels:         p.labels       ?? null,
     is_most_loved:  p.isMostLoved  ?? false,
     source_price:   p.sourcePrice,
-    selling_price:  p.sourcePrice != null
-      ? parseFloat((p.sourcePrice * (1 + DEFAULT_MARKUP)).toFixed(2))
-      : null,
+    selling_price:  computeSellingPrice(null, p.sourcePrice, globalMarkup),
     image_urls:     p.imageUrls,
     amway_url:      p.amwayUrl,
     category_id:    categoryId,
     is_active:      true,
-    stock_status:   'inStock',
+    stock_status:   p.stockStatus ?? 'inStock',
     last_synced_at: now,
   });
-  return 'inserted';
+  if (error) throw new Error(`insert ${p.code}: ${error.message}`);
+  return { outcome: 'inserted', priceChanged: false, stockChanged: false };
+}
+
+// After a complete, error-free sync of every category: any product still marked in stock
+// that Amway no longer lists is marked out of stock, so it can't be bought.
+// It isn't hidden (is_active is left alone) so the owner's own show/hide choices stay hers;
+// if Amway lists it again, the next sync puts it back in stock.
+async function markDelisted(seenCodes) {
+  const stale = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('amway_code, name')
+      .eq('stock_status', 'inStock')
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(`load products: ${error.message}`);
+    for (const row of data ?? []) if (!seenCodes.has(row.amway_code)) stale.push(row);
+    if (!data || data.length < PAGE) break;
+  }
+
+  for (const row of stale) {
+    const { error } = await supabase
+      .from('products')
+      .update({ stock_status: 'outOfStock' })
+      .eq('amway_code', row.amway_code);
+    if (error) throw new Error(`delist ${row.amway_code}: ${error.message}`);
+  }
+  return stale;
 }
 
 // ---------- main ----------
@@ -480,12 +573,19 @@ async function main() {
     process.exit(1);
   }
 
+  const globalMarkup = await getGlobalMarkupPercent();
+  console.log(`Global markup: ${globalMarkup}%`);
+
   let { token, browser } = await obtainAnonymousToken();
   console.log('Token acquired.\n');
 
   const allNormalised = [];
-  let totalInserted   = 0;
-  let totalUpdated    = 0;
+  const seenCodes     = new Set();
+  const failedCats    = [];
+  const stats = {
+    inserted: 0, updated: 0, priceChanged: 0, stockChanged: 0,
+    outOfStock: 0, noStockInfo: 0, pdpBlocked: 0, pdpFailed: 0, writeErrors: 0,
+  };
 
   try {
     for (const categoryCode of targets) {
@@ -501,6 +601,7 @@ async function main() {
       }
 
       process.stdout.write(`${result.products.length} products\n`);
+      if (result.failed || result.expired) failedCats.push(categoryCode);
       if (!result.products.length) continue;
 
       const normalised = result.products.map((p) => normalise(p, categoryCode)).filter(Boolean);
@@ -508,8 +609,13 @@ async function main() {
 
       let inserted = 0, updated = 0;
       for (const p of normalised) {
+        seenCodes.add(p.code);
+
         // Fetch richer PDP data from the product page HTML (__NEXT_DATA__)
-        const pdpRaw = await fetchProductDetail(p.amwayUrl);
+        const { data: pdpRaw, blocked } = await fetchProductDetail(p.amwayUrl);
+        if (blocked) stats.pdpBlocked++;
+        else if (!pdpRaw) stats.pdpFailed++;
+
         const detail = extractDetail(pdpRaw);
         if (detail.overview)      p.overview  = detail.overview;
         if (detail.details)       p.details   = detail.details;
@@ -520,15 +626,27 @@ async function main() {
           const existing = new Set(p.imageUrls);
           for (const u of detail.extraImages) if (!existing.has(u)) p.imageUrls.push(u);
         }
+        // Stock: prefer the listing's value, fall back to the product page's
+        if (!p.stockStatus) p.stockStatus = mapStockStatus(pdpRaw);
+        if (!p.stockStatus) stats.noStockInfo++;
+        else if (p.stockStatus === 'outOfStock') stats.outOfStock++;
+
         await new Promise((r) => setTimeout(r, 300)); // be polite
 
-        const outcome = await upsertProduct(p);
-        if (outcome === 'inserted') inserted++;
-        else updated++;
+        try {
+          const r = await upsertProduct(p, { pdpOk: !!pdpRaw, globalMarkup });
+          if (r.outcome === 'inserted') inserted++;
+          else updated++;
+          if (r.priceChanged) stats.priceChanged++;
+          if (r.stockChanged) stats.stockChanged++;
+        } catch (err) {
+          stats.writeErrors++;
+          console.warn(`  DB error: ${err.message}`);
+        }
       }
       console.log(`  Inserted: ${inserted}, Updated: ${updated}`);
-      totalInserted += inserted;
-      totalUpdated  += updated;
+      stats.inserted += inserted;
+      stats.updated  += updated;
 
       await new Promise((r) => setTimeout(r, 800));
     }
@@ -536,10 +654,57 @@ async function main() {
     await browser.close();
   }
 
+  // Only mark missing products out of stock after a full, clean sync — otherwise a blocked
+  // or partial run would wrongly mark half the store as sold out.
+  let delisted = [];
+  const fullSync = !categoryFilter;
+  const cleanRun = failedCats.length === 0 && stats.writeErrors === 0 && seenCodes.size > 0;
+  if (fullSync && cleanRun) {
+    delisted = await markDelisted(seenCodes);
+  }
+
   const outPath = path.resolve(__dirname, 'all-products.json');
   fs.writeFileSync(outPath, JSON.stringify(allNormalised, null, 2));
   console.log(`\nSaved ${allNormalised.length} products → scripts/all-products.json`);
-  console.log(`Done. Inserted: ${totalInserted}, Updated: ${totalUpdated}`);
+
+  // ---------- summary ----------
+  console.log('\n========== SYNC SUMMARY ==========');
+  console.log(`Inserted: ${stats.inserted}, Updated: ${stats.updated}`);
+  console.log(`Selling prices changed: ${stats.priceChanged}`);
+  console.log(`Stock status changed:   ${stats.stockChanged}  (currently out of stock on Amway: ${stats.outOfStock})`);
+  if (fullSync && cleanRun) {
+    console.log(`No longer listed on Amway → marked out of stock: ${delisted.length}`);
+    for (const d of delisted.slice(0, 20)) console.log(`  - ${d.amway_code} ${d.name ?? ''}`);
+    if (delisted.length > 20) console.log(`  ... and ${delisted.length - 20} more`);
+  } else if (fullSync) {
+    console.log('Skipped checking for products Amway no longer lists (run was not clean).');
+  }
+
+  const problems = [];
+  if (failedCats.length) {
+    problems.push(`${failedCats.length} categor${failedCats.length === 1 ? 'y' : 'ies'} failed to fetch: ${failedCats.join(', ')}`);
+  }
+  if (stats.pdpBlocked) {
+    problems.push(`${stats.pdpBlocked} product pages BLOCKED by Amway bot protection — descriptions/extra images were kept as they were`);
+  }
+  if (stats.pdpFailed) {
+    problems.push(`${stats.pdpFailed} product pages could not be read — descriptions/extra images were kept as they were`);
+  }
+  if (stats.noStockInfo) {
+    problems.push(`${stats.noStockInfo} products had no stock info from Amway — their stock status was left unchanged`);
+  }
+  if (stats.writeErrors) {
+    problems.push(`${stats.writeErrors} products failed to save to the database`);
+  }
+
+  if (problems.length) {
+    console.log('\n⚠ PROBLEMS:');
+    for (const p of problems) console.log(`  - ${p}`);
+  }
+  console.log('==================================');
+
+  // Non-zero exit when the core data (listings / DB writes) failed, so a scheduler can alert.
+  if (failedCats.length || stats.writeErrors || seenCodes.size === 0) process.exit(1);
 }
 
 main().catch((err) => {

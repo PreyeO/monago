@@ -123,9 +123,22 @@ export function ProductTable() {
                 )}
               </td>
               <td className="px-4 py-3">
-                <Badge variant={product.stock_status === 'inStock' ? 'success' : 'danger'}>
-                  {product.stock_status === 'inStock' ? 'In Stock' : 'Out'}
-                </Badge>
+                <button
+                  type="button"
+                  title={product.stock_status === 'inStock' ? 'Click to mark out of stock' : 'Click to mark in stock'}
+                  disabled={updateProduct.isPending}
+                  onClick={() =>
+                    updateProduct.mutate({
+                      id: product.id,
+                      update: { stock_status: product.stock_status === 'inStock' ? 'outOfStock' : 'inStock' },
+                    })
+                  }
+                  className="cursor-pointer disabled:cursor-wait disabled:opacity-60"
+                >
+                  <Badge variant={product.stock_status === 'inStock' ? 'success' : 'danger'}>
+                    {product.stock_status === 'inStock' ? 'In Stock' : 'Out of Stock'}
+                  </Badge>
+                </button>
               </td>
               <td className="px-4 py-3">
                 <button

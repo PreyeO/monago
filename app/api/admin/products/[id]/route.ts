@@ -12,10 +12,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const { id } = await params;
   const body = await req.json();
-  const allowed = ['selling_price', 'is_active', 'markup_override'];
+  const allowed = ['selling_price', 'is_active', 'markup_override', 'stock_status'];
   const update: Record<string, unknown> = {};
   for (const key of allowed) {
     if (key in body) update[key] = body[key];
+  }
+  if ('stock_status' in update && !['inStock', 'outOfStock'].includes(update.stock_status as string)) {
+    return NextResponse.json({ error: 'Invalid stock_status' }, { status: 400 });
   }
 
   const supabase = createServerClient();

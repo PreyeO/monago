@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe';
 import { createServerClient } from '@/lib/supabase/server';
 import { resend } from '@/lib/resend';
 import { orderConfirmationHtml } from '@/lib/email/orderConfirmation';
+import { ownerOrderNotificationHtml, ownerOrderSubject } from '@/lib/email/ownerOrderNotification';
 import { sendServerEvent } from '@/lib/meta/capi';
 import Stripe from 'stripe';
 
@@ -59,6 +60,35 @@ export async function POST(req: NextRequest) {
       } catch (emailErr) {
         console.error('Failed to send order confirmation email:', emailErr);
       }
+    }
+
+    // Notify the store owner(s) so they can place the order on Amway.
+    // OWNER_EMAIL may hold several addresses separated by commas.
+    const ownerEmails = (process.env.OWNER_EMAIL ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (order?.id && ownerEmails.length) {
+      try {
+        const { error: ownerErr } = await resend.emails.send({
+          from: 'Monago Orders <orders@hello.monago.co.uk>',
+          to: ownerEmails,
+          replyTo: order.customer_email || undefined,
+          subject: ownerOrderSubject(order.id, order.total),
+          html: ownerOrderNotificationHtml({
+            orderId:         order.id,
+            customerName:    order.customer_name,
+            customerEmail:   order.customer_email,
+            items:           order.items,
+            subtotal:        order.subtotal,
+            total:           order.total,
+            shippingAddress: order.shipping_address,
+            adminUrl:        `https://www.monago.co.uk/admin/orders/${order.id}`,
+          }),
+        });
+        if (ownerErr) console.error('Owner order email rejected:', ownerErr);
+      } catch (emailErr) {
+        console.error('Failed to send owner order email:', emailErr);
+      }
+    } else if (order?.id) {
+      console.warn('OWNER_EMAIL is not set — no owner notification sent for order', order.id);
     }
 
     // Authoritative server-side Purchase event (Meta Conversions API).

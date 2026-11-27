@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase/server';
 import { requireAdmin } from '@/lib/adminAuth';
+import { stripe } from '@/lib/stripe';
+import Stripe from 'stripe';
 
 interface Params {
   params: Promise<{ id: string }>;
@@ -14,7 +16,24 @@ export async function GET(req: NextRequest, { params }: Params) {
   const supabase = createServerClient();
   const { data, error } = await supabase.from('orders').select('*').eq('id', id).single();
   if (error || !data) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json({ order: data });
+
+  // Live payment/refund figures from Stripe (in pounds). Null if Stripe can't be reached.
+  let payment: { paid: number; refunded: number; status: string } | null = null;
+  if (data.stripe_payment_intent_id) {
+    try {
+      const pi = await stripe.paymentIntents.retrieve(data.stripe_payment_intent_id, { expand: ['latest_charge'] });
+      const charge = pi.latest_charge as Stripe.Charge | null;
+      payment = {
+        paid:     (pi.amount_received ?? 0) / 100,
+        refunded: (charge?.amount_refunded ?? 0) / 100,
+        status:   pi.status,
+      };
+    } catch (err) {
+      console.error('admin order: could not load Stripe payment', err);
+    }
+  }
+
+  return NextResponse.json({ order: data, payment });
 }
 
 export async function PATCH(req: NextRequest, { params }: Params) {

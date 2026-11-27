@@ -33,6 +33,12 @@ export async function POST(req: NextRequest) {
       if (!product || !product.is_active || !product.selling_price) {
         return NextResponse.json({ error: `Product ${item.productId} unavailable` }, { status: 400 });
       }
+      if (product.stock_status !== 'inStock') {
+        return NextResponse.json(
+          { error: `Sorry, ${product.name ?? 'an item in your bag'} is out of stock. Please remove it to continue.` },
+          { status: 400 }
+        );
+      }
       subtotal += product.selling_price * item.qty;
     }
 

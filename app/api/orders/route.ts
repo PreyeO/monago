@@ -24,11 +24,27 @@ export async function POST(req: NextRequest) {
 
     const { data: products, error: prodError } = await supabase
       .from('products')
-      .select('id, selling_price, name, brand, amway_code, is_active')
+      .select('id, selling_price, name, brand, amway_code, is_active, stock_status')
       .in('id', ids);
 
     if (prodError || !products) {
       return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+    }
+
+    for (const item of items) {
+      const product = products.find((p) => p.id === item.productId);
+      if (!product || !product.is_active || !product.selling_price) {
+        return NextResponse.json(
+          { error: `Sorry, ${item.name ?? 'an item in your bag'} is no longer available. Please remove it to continue.` },
+          { status: 400 }
+        );
+      }
+      if (product.stock_status !== 'inStock') {
+        return NextResponse.json(
+          { error: `Sorry, ${product.name ?? 'an item in your bag'} is out of stock. Please remove it to continue.` },
+          { status: 400 }
+        );
+      }
     }
 
     let subtotal = 0;

@@ -79,7 +79,8 @@ function CheckoutInner() {
     });
 
     if (!orderRes.ok) {
-      setError('Failed to create order. Please try again.');
+      const body = await orderRes.json().catch(() => null);
+      setError(body?.error ?? 'Failed to create order. Please try again.');
       setProcessing(false);
       return;
     }

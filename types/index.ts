@@ -59,6 +59,8 @@ export interface OrderItem {
   brand: string;
   quantity: number;
   unit_price: number;
+  /** Set by the admin refund action once this line has been refunded. */
+  refunded?: boolean;
 }
 
 export interface Order {
@@ -86,6 +88,7 @@ export interface AdminProductUpdate {
   selling_price?: number;
   is_active?: boolean;
   markup_override?: number;
+  stock_status?: 'inStock' | 'outOfStock';
 }
 
 export interface Setting {

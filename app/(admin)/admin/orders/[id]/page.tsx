@@ -3,7 +3,8 @@
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronLeft, Copy, ExternalLink } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AdminLayout } from '@/components/layout/AdminLayout';
 import { Order } from '@/types';
 import { formatPrice, getAmwayProductUrl } from '@/lib/utils';
@@ -18,18 +19,66 @@ const statusVariant: Record<string, 'default' | 'success' | 'warning' | 'danger'
 export default function AdminOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const updateStatus = useUpdateOrderStatus();
+  const qc = useQueryClient();
+  const [refundMsg, setRefundMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['admin-order', id],
     queryFn: async () => {
       const res = await fetch(`/api/admin/orders/${id}`);
       if (!res.ok) throw new Error('Not found');
-      return res.json() as Promise<{ order: Order }>;
+      return res.json() as Promise<{
+        order: Order;
+        payment: { paid: number; refunded: number; status: string } | null;
+      }>;
     },
     enabled: !!id,
   });
 
   const order = data?.order;
+  const payment = data?.payment ?? null;
+  const remaining = payment ? Math.max(0, payment.paid - payment.refunded) : 0;
+  const canRefund = !!payment && payment.status === 'succeeded' && remaining > 0.001;
+
+  const refund = useMutation({
+    mutationFn: async (body: { full?: boolean; itemIndex?: number; markOutOfStock?: boolean }) => {
+      const res = await fetch(`/api/admin/orders/${id}/refund`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error ?? 'Refund failed');
+      return json as { refunded: number; fullyRefunded: boolean };
+    },
+    onSuccess: (r) => {
+      setRefundMsg({
+        ok: true,
+        text: `Refunded ${formatPrice(r.refunded)} to the customer.${r.fullyRefunded ? ' Order is now fully refunded and marked cancelled.' : ''}`,
+      });
+      qc.invalidateQueries({ queryKey: ['admin-order', id] });
+      qc.invalidateQueries({ queryKey: ['admin-orders'] });
+      qc.invalidateQueries({ queryKey: ['admin-products'] });
+    },
+    onError: (err: Error) => setRefundMsg({ ok: false, text: err.message }),
+  });
+
+  function refundItem(index: number) {
+    if (!order) return;
+    const item = order.items[index];
+    const amount = formatPrice(item.unit_price * item.quantity);
+    if (!window.confirm(`Refund ${amount} for "${item.name}" (x${item.quantity}) to ${order.customer_name}?\n\nThis sends the money back through Stripe and cannot be undone.`)) return;
+    const markOutOfStock = window.confirm(`Also mark "${item.name}" as OUT OF STOCK in the store so nobody else can buy it?\n\nOK = yes, mark out of stock\nCancel = no, leave it in stock`);
+    setRefundMsg(null);
+    refund.mutate({ itemIndex: index, markOutOfStock });
+  }
+
+  function refundAll() {
+    if (!order) return;
+    if (!window.confirm(`Refund the remaining ${formatPrice(remaining)} (whole order, including shipping) to ${order.customer_name}?\n\nThis cannot be undone.`)) return;
+    setRefundMsg(null);
+    refund.mutate({ full: true });
+  }
 
   function copyOrderText() {
     if (!order) return;
@@ -73,9 +122,12 @@ export default function AdminOrderDetailPage() {
             </div>
             <div className="divide-y divide-slate-100">
               {order.items.map((item, i) => (
-                <div key={i} className="flex items-start justify-between px-5 py-4">
+                <div key={i} className={`flex items-start justify-between px-5 py-4 ${item.refunded ? 'opacity-60' : ''}`}>
                   <div>
-                    <p className="font-medium text-slate-900">{item.name}</p>
+                    <p className="font-medium text-slate-900">
+                      {item.name}
+                      {item.refunded && <Badge variant="danger" className="ml-2">Refunded</Badge>}
+                    </p>
                     <p className="text-xs text-slate-500">{item.brand} · Code: {item.amway_code}</p>
                     <p className="text-xs text-slate-500">Qty: {item.quantity}</p>
                     <a
@@ -87,9 +139,16 @@ export default function AdminOrderDetailPage() {
                       View on Amway <ExternalLink className="h-3 w-3" />
                     </a>
                   </div>
-                  <span className="text-sm font-semibold text-slate-900">
-                    {formatPrice(item.unit_price * item.quantity)}
-                  </span>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className="text-sm font-semibold text-slate-900">
+                      {formatPrice(item.unit_price * item.quantity)}
+                    </span>
+                    {canRefund && !item.refunded && (
+                      <Button variant="ghost" size="sm" onClick={() => refundItem(i)} disabled={refund.isPending}>
+                        Refund item
+                      </Button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -128,6 +187,29 @@ export default function AdminOrderDetailPage() {
                 <option key={s} value={s}>{s}</option>
               ))}
             </select>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="mb-3 font-semibold text-slate-900">Payment &amp; refunds</h2>
+            {payment ? (
+              <div className="space-y-1 text-sm text-slate-600">
+                <div className="flex justify-between"><span>Paid</span><span>{formatPrice(payment.paid)}</span></div>
+                <div className="flex justify-between"><span>Refunded</span><span>{formatPrice(payment.refunded)}</span></div>
+                <div className="flex justify-between font-medium text-slate-900"><span>Remaining</span><span>{formatPrice(remaining)}</span></div>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">No completed Stripe payment found for this order.</p>
+            )}
+            {canRefund && (
+              <Button variant="danger" size="sm" className="mt-4 w-full" onClick={refundAll} loading={refund.isPending}>
+                Refund whole order
+              </Button>
+            )}
+            {refundMsg && (
+              <p className={`mt-3 rounded-md p-2 text-xs ${refundMsg.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+                {refundMsg.text}
+              </p>
+            )}
           </div>
         </div>
       </div>
