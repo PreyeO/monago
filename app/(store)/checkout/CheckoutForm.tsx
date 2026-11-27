@@ -14,6 +14,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { useRouter } from 'next/navigation';
 import { useCartStore } from '@/store/cartStore';
 import { formatPrice } from '@/lib/utils';
+import { formatUkPostcode, isUkPostcode } from '@/lib/ukPostcode';
 import { Input, Button } from '@/components/ui';
 import { CartItem } from '@/components/cart/CartItem';
 
@@ -27,8 +28,11 @@ const schema = z.object({
   line1: z.string().min(1, 'Required'),
   line2: z.string().optional(),
   city: z.string().min(1, 'Required'),
-  county: z.string().min(1, 'Required'),
-  postcode: z.string().min(1, 'Required'),
+  county: z.string().optional(),
+  postcode: z
+    .string()
+    .min(1, 'Required')
+    .refine(isUkPostcode, 'Please enter a valid UK postcode — we only deliver within the UK'),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -71,7 +75,7 @@ function CheckoutInner() {
           line2: data.line2,
           city: data.city,
           county: data.county,
-          postcode: data.postcode,
+          postcode: formatUkPostcode(data.postcode),
           country: 'GB',
         },
         items,
@@ -116,26 +120,35 @@ function CheckoutInner() {
           </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Input label="Email" type="email" error={errors.email?.message} {...register('email')} />
-            <Input label="Phone" type="tel" {...register('phone')} />
+            <Input label="Phone" type="tel" error={errors.phone?.message} {...register('phone')} />
           </div>
         </div>
 
         <div>
-          <h2 className="mb-4 text-lg font-semibold text-slate-900">Shipping Address</h2>
+          <h2 className="mb-1 text-lg font-semibold text-slate-900">Shipping Address</h2>
+          <p className="mb-4 text-sm text-slate-500">We currently deliver within the United Kingdom only.</p>
           <div className="space-y-4">
             <Input label="Address line 1" error={errors.line1?.message} {...register('line1')} />
             <Input label="Address line 2 (optional)" {...register('line2')} />
             <div className="grid gap-4 sm:grid-cols-2">
               <Input label="City / Town" error={errors.city?.message} {...register('city')} />
-              <Input label="County" {...register('county')} />
+              <Input label="County (optional)" error={errors.county?.message} {...register('county')} />
             </div>
-            <Input label="Postcode" error={errors.postcode?.message} {...register('postcode')} />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Input
+                label="Postcode"
+                autoComplete="postal-code"
+                error={errors.postcode?.message}
+                {...register('postcode')}
+              />
+              <Input label="Country" value="United Kingdom" readOnly disabled aria-readonly="true" />
+            </div>
           </div>
         </div>
 
         <div>
           <h2 className="mb-4 text-lg font-semibold text-slate-900">Payment</h2>
-          <PaymentElement />
+          <PaymentElement options={{ defaultValues: { billingDetails: { address: { country: 'GB' } } } }} />
         </div>
 
         {error && (
