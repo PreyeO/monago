@@ -14,6 +14,12 @@ const nextConfig: NextConfig = {
         hostname: 'www.amway.co.uk',
         pathname: '/**',
       },
+      {
+        // Images uploaded from the admin product form (Supabase Storage, public bucket)
+        protocol: 'https',
+        hostname: '**.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
     ],
   },
 };

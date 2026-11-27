@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { stripe } from '@/lib/stripe';
 import { createServerClient } from '@/lib/supabase/server';
 import { CartItem, ShippingAddress } from '@/types';
+import { formatUkPostcode, isUkPostcode } from '@/lib/ukPostcode';
 
 interface CreateOrderBody {
   customerName: string;
@@ -18,6 +19,19 @@ export async function POST(req: NextRequest) {
     if (!items?.length) {
       return NextResponse.json({ error: 'No items' }, { status: 400 });
     }
+
+    // UK delivery only — enforced here as well as in the form.
+    if (!shippingAddress?.line1?.trim() || !shippingAddress?.city?.trim()) {
+      return NextResponse.json({ error: 'Please enter your full delivery address.' }, { status: 400 });
+    }
+    if (!shippingAddress.postcode || !isUkPostcode(shippingAddress.postcode)) {
+      return NextResponse.json(
+        { error: 'Please enter a valid UK postcode. We only deliver within the United Kingdom.' },
+        { status: 400 }
+      );
+    }
+    shippingAddress.postcode = formatUkPostcode(shippingAddress.postcode);
+    shippingAddress.country = 'GB';
 
     const supabase = createServerClient();
     const ids = items.map((i) => i.productId);

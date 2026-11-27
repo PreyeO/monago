@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { Search } from 'lucide-react';
+import Link from 'next/link';
+import { Pencil, Search } from 'lucide-react';
 import { Product } from '@/types';
 import { formatPrice, pick90Image } from '@/lib/utils';
 import { Badge, Button, Spinner } from '@/components/ui';
@@ -154,7 +155,13 @@ export function ProductTable() {
                   />
                 </button>
               </td>
-              <td className="px-4 py-3">
+              <td className="px-4 py-3 whitespace-nowrap">
+                <Link
+                  href={`/admin/products/${product.id}`}
+                  className="mr-3 inline-flex items-center gap-1 text-xs font-medium text-slate-700 hover:text-amber-600"
+                >
+                  <Pencil className="h-3 w-3" /> Edit
+                </Link>
                 {product.amway_url && (
                   <a
                     href={`https://www.amway.co.uk${product.amway_url}`}
